@@ -4,12 +4,15 @@
 import os
 
 import numpy as np
+from rdkit import Chem
+from rdkit.Chem import AllChem
 
 
 class MolData(object):
     """
     Class to parse molecular data from the QM9 dataset.
     """
+
     def __init__(self, path=None):
         # Geometries and energies at B3LYP/6-31G(2df,p) level of
         # theory if parsed directly from QM9 dataset
@@ -121,3 +124,35 @@ class MolData(object):
             return True
         else:
             return False
+
+    def to_rdkit(self, gen_3d=True, nconf=100):
+        """
+        Currently only uses SMILES to generate the 3D structure.
+        Tries to generate the lowest-energy conformer.
+        """
+        mol = Chem.MolFromSmiles(self.smiles)
+        mol = Chem.AddHs(mol)
+
+        if gen_3d:
+            cids = AllChem.EmbedMultipleConfs(mol, nconf, AllChem.ETKDG())
+
+            AllChem.MMFFSanitizeMolecule(mol)
+            mmff_props = AllChem.MMFFGetMoleculeProperties(mol)
+
+            energies = []
+            for cid in cids:
+                ff = AllChem.MMFFGetMoleculeForceField(mol, mmff_props, confId=cid)
+                ff.Minimize()
+                energy = ff.CalcEnergy()
+                energies.append(energy)
+
+            energies = np.asarray(energies)
+            min_energy_idx = np.argsort(energies)[0]
+
+            new_mol = Chem.Mol(mol)
+            new_mol.RemoveAllConformers()
+            min_conf = mol.GetConformer(cids[min_energy_idx])
+            new_mol.AddConformer(min_conf, assignId=True)
+            mol = new_mol
+
+        return mol
