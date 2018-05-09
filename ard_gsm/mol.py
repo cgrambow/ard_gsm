@@ -115,3 +115,9 @@ class MolData(object):
         self.file_name = os.path.basename(path)
         self.model_chemistry = 'b3lyp/6-31g(2df,p)'
         self.e0 = self.u0 - self.zpe
+
+    def contains_element(self, element):
+        if element.lower() in {e.lower() for e in set(self.elements)}:
+            return True
+        else:
+            return False
