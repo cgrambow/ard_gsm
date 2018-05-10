@@ -8,14 +8,14 @@ class QChem(object):
     """
     `mol` is an RDKit molecule with Hs already added. It should already
     contain the 3D geometry of the lowest-energy conformer. The options in the
-    `qchem.in` config file should be set as desired.
+    `qchem.opt` config file should be set as desired.
     """
 
     def __init__(self, mol, config_file=None):
         self.mol = mol  # RDKit molecule with Hs added
 
         if config_file is None:
-            config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'qchem.in')
+            config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'qchem.opt')
         with open(config_file) as f:
             self.config = [line.strip() for line in f]
 
