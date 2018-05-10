@@ -1,0 +1,18 @@
+$rem
+JOBTYPE               OPT
+METHOD                B97-D3
+DFT_D                 D3_BJ
+BASIS                 def2-SVP
+UNRESTRICTED          TRUE
+MAX_SCF_CYCLES        150
+SCF_ALGORITHM         DIIS
+SCF_CONVERGENCE       6
+SYM_IGNORE            TRUE
+SYMMETRY              FALSE
+GEOM_OPT_MAX_CYCLES   300
+WAVEFUNCTION_ANALYSIS FALSE
+$end
+
+$molecule
+0 1
+$end
