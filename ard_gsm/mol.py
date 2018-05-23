@@ -193,17 +193,55 @@ class Atom(object):
 class Connection(object):
     """
     Represents a connection in a molecular graph.
+
+    Note: Equality and hash are only based on atom symbols and indices.
     """
 
     def __init__(self, atom1, atom2):
-        self.atom1 = atom1
-        self.atom2 = atom2
+        self._atom1 = atom1
+        self._atom2 = atom2
+        self._make_order_invariant()
 
     def __str__(self):
         return '({})--({})'.format(str(self.atom1), str(self.atom2))
 
     def __repr__(self):
         return '<Connection "{}">'.format(str(self))
+
+    def __eq__(self, other):
+        return str(self) == str(other)
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash(str(self))
+
+    def _make_order_invariant(self):
+        # Ensure that atom ordering is consistent
+        atoms = [self._atom1, self._atom2]
+        atoms.sort(key=lambda a: a.symbol)
+        if self._atom1.idx is not None or self._atom2.idx is not None:
+            atoms.sort(key=lambda a: a.idx)
+        self._atom1, self._atom2 = atoms
+
+    @property
+    def atom1(self):
+        return self._atom1
+
+    @property
+    def atom2(self):
+        return self._atom2
+
+    @atom1.setter
+    def atom1(self, val):
+        self._atom1 = val
+        self._make_order_invariant()
+
+    @atom2.setter
+    def atom2(self, val):
+        self._atom2 = val
+        self._make_order_invariant()
 
     def copy(self):
         return Connection(self.atom1, self.atom2)
@@ -246,7 +284,7 @@ class MolGraph(object):
             return connection
 
     def get_all_connections(self):
-        return list({connection for atom in self.atoms for connection in atom.connections.itervalues()})
+        return {connection for atom in self.atoms for connection in atom.connections.itervalues()}
 
     def get_connection(self, atom1, atom2):
         if atom1 not in self.atoms or atom2 not in self.atoms:
@@ -263,8 +301,9 @@ class MolGraph(object):
         atom.connections = {}
         self.atoms.remove(atom)
 
-    @staticmethod
-    def remove_connection(connection):
+    def remove_connection(self, connection):
+        if connection.atom1 not in self.atoms or connection.atom2 not in self.atoms:
+            raise Exception('Cannot remove connection between atoms not in the graph')
         del connection.atom1.connections[connection.atom2]
         del connection.atom2.connections[connection.atom1]
 
