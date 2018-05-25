@@ -425,3 +425,21 @@ class MolGraph(object):
                 else:
                     chain.remove(atom2)
         return False
+
+    def label_equivalent_hydrogens(self):
+        """
+        Mark all equivalent hydrogens as frozen. For now, this assumes that the
+        carbons they are attached to have 4 connections, which means this
+        method does not yet work for radicals.
+        """
+        for atom in self:
+            if (atom.symbol.upper() == 'C'
+                    and len(atom.connections) == 4
+                    and not self.is_atom_in_cycle(atom)):
+                first_hydrogen = True
+                for atom2 in atom.connections:
+                    if atom2.symbol.upper() == 'H':
+                        if first_hydrogen:
+                            first_hydrogen = False
+                        else:
+                            atom2.frozen = True
