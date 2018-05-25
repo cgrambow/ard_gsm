@@ -49,9 +49,23 @@ class DrivingCoords(object):
         self._form_idxs.add(tuple(sorted(idxs)))
 
 
-def generate_driving_coords(mol, maxbreak=3, maxform=3, maxchange=5, single_change=True):
+def generate_driving_coords(mol, maxbreak=3, maxform=3, maxchange=5, single_change=True, equiv_Hs=False):
+    """
+    Generate the set of possible driving coordinates given a molecule. Only
+    consider breaking a maximum of `maxbreak`, forming a maximum of `maxform`,
+    and in total changing a maximum of `maxchange` connections (molecular
+    bonds are considered without regard for the bond order). If `single_change`
+    is true, consider driving coordinates for (nbreak,nform) in ((0,1),(1,0))
+    in addition to the other ones. If `equiv_Hs` is true, generate essentially
+    equivalent driving coordinates for different but equivalent hydrogens,
+    i.e., those attached to the same non-cyclic tetrahedral carbon.
+    """
     assert all(atom.idx is not None for atom in mol.atoms)
     driving_coords_set = set()
+
+    mol = mol.copy(deep=True)
+    if not equiv_Hs:
+        mol.label_equivalent_hydrogens()
 
     # Enumerate all possible connections between atoms
     # and remove the ones for atoms that are already connected
@@ -59,7 +73,8 @@ def generate_driving_coords(mol, maxbreak=3, maxform=3, maxchange=5, single_chan
     connections = mol.get_all_connections()
     all_possible_connections = [Connection(atom1, atom2)
                                 for i, atom1 in enumerate(atoms)
-                                for atom2 in atoms[(i+1):]]
+                                for atom2 in atoms[(i+1):]
+                                if not atom1.frozen and not atom2.frozen]
     all_potential_new_connections = [connection for connection in all_possible_connections
                                      if connection not in connections]
 
