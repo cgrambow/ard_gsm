@@ -409,3 +409,19 @@ class MolGraph(object):
                 else:
                     connection = Connection(atom1, atom2)
                     self.add_connection(connection)
+
+    def is_atom_in_cycle(self, atom):
+        return self._is_chain_in_cycle([atom])
+
+    def _is_chain_in_cycle(self, chain):
+        atom1 = chain[-1]
+        for atom2 in atom1.connections:
+            if atom2 is chain[0] and len(chain) > 2:
+                return True
+            elif atom2 not in chain:
+                chain.append(atom2)
+                if self._is_chain_in_cycle(chain):
+                    return True
+                else:
+                    chain.remove(atom2)
+        return False
