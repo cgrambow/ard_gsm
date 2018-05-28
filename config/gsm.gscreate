@@ -1,0 +1,4 @@
+#!/bin/bash
+
+file=molecule
+cat qstart $QCSCRATCH/molecule$1 qend > $QCSCRATCH/qcin$1
