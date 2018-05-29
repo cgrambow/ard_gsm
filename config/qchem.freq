@@ -1,0 +1,17 @@
+$rem
+JOBTYPE                   FREQ
+METHOD                    B97-D3
+DFT_D                     D3_BJ
+BASIS                     def2-mSVP
+UNRESTRICTED              TRUE
+SCF_ALGORITHM             DIIS
+MAX_SCF_CYCLES            150
+SCF_CONVERGENCE           7
+SYM_IGNORE                TRUE
+SYMMETRY                  FALSE
+WAVEFUNCTION_ANALYSIS     FALSE
+$end
+
+$molecule
+0 1
+$end
