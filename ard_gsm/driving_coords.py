@@ -38,6 +38,17 @@ class DrivingCoords(object):
     def __hash__(self):
         return hash(str(self))
 
+    def reconstruct_from_str(self, s):
+        self._break_idxs = set()
+        self._form_idxs = set()
+        for line in s.splitlines():
+            if 'BREAK' in line:
+                idxs = [int(idx) for idx in line.split()[1:]]
+                self.add_break_idxs(idxs)
+            elif 'ADD' in line:
+                idxs = [int(idx) for idx in line.split()[1:]]
+                self.add_form_idxs(idxs)
+
     def remove_duplicates(self):
         self._break_idxs = {tuple(sorted(idxs)) for idxs in self._break_idxs}
         self._form_idxs = {tuple(sorted(idxs)) for idxs in self._form_idxs}
@@ -47,6 +58,36 @@ class DrivingCoords(object):
 
     def add_form_idxs(self, idxs):
         self._form_idxs.add(tuple(sorted(idxs)))
+
+    def is_subset(self, other):
+        """
+        Return True if self is contained in other.
+        """
+        for idxs in self._break_idxs:
+            if idxs not in other._break_idxs:
+                return False
+        for idxs in self._form_idxs:
+            if idxs not in other._form_idxs:
+                return False
+        return True
+
+    def get_connections(self, atoms):
+        atoms_dict = {}
+        for atom in atoms:
+            if atom.idx is None:
+                raise Exception('Atom {} is missing index'.format(atom.symbol))
+            else:
+                atoms_dict[atom.idx] = atom
+
+        connections_break, connections_form = [], []
+        for idxs in self._break_idxs:
+            connection = Connection(atoms_dict[idxs[0]], atoms_dict[idxs[1]])
+            connections_break.append(connection)
+        for idxs in self._form_idxs:
+            connection = Connection(atoms_dict[idxs[0]], atoms_dict[idxs[1]])
+            connections_form.append(connection)
+
+        return connections_break, connections_form
 
 
 def generate_driving_coords(mol, maxbreak=3, maxform=3, maxchange=5, single_change=True, equiv_Hs=False,
