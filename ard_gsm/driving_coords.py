@@ -91,7 +91,7 @@ class DrivingCoords(object):
 
 
 def generate_driving_coords(mol, maxbreak=3, maxform=3, maxchange=5, single_change=True, equiv_Hs=False,
-                            minbreak=0, minform=0):
+                            minbreak=0, minform=0, minchange=1):
     """
     Generate the set of possible driving coordinates given a molecule. Only
     consider breaking a maximum of `maxbreak`, forming a maximum of `maxform`,
@@ -102,7 +102,7 @@ def generate_driving_coords(mol, maxbreak=3, maxform=3, maxchange=5, single_chan
     equivalent driving coordinates for different but equivalent hydrogens,
     i.e., those attached to the same non-cyclic tetrahedral carbon.
 
-    Can also specify minbreak and minform.
+    Can also specify minbreak, minform, and minchange.
     """
     assert all(atom.idx is not None for atom in mol.atoms)
     driving_coords_set = set()
@@ -124,7 +124,7 @@ def generate_driving_coords(mol, maxbreak=3, maxform=3, maxchange=5, single_chan
 
     for nbreak in range(minbreak, maxbreak+1):
         for nform in range(minform, maxform+1):
-            if nbreak == nform == 0:
+            if nbreak + nform < minchange:
                 continue
             elif nbreak + nform > maxchange:
                 continue

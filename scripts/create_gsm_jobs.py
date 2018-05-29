@@ -36,6 +36,9 @@ def main():
         f.write('maxchange = {}\n'.format(args.maxchange))
         f.write('single_change = {}\n'.format(not args.ignore_single_change))
         f.write('equiv_Hs = {}\n'.format(args.equiv_Hs))
+        f.write('minbreak = {}\n'.format(args.minbreak))
+        f.write('minform = {}\n'.format(args.minform))
+        f.write('minchange = {}\n'.format(args.minchange))
 
     for log_idx, logfile in enumerate(glob.iglob(os.path.join(args.qlog_dir, '*.log'))):
         log = QChem(logfile=logfile)
@@ -64,6 +67,9 @@ def main():
             maxchange=args.maxchange,
             single_change=not args.ignore_single_change,
             equiv_Hs=args.equiv_Hs,
+            minbreak=args.minbreak,
+            minform=args.minform,
+            minchange=args.minchange
         )
 
         try:
@@ -108,6 +114,9 @@ def parse_args():
     parser.add_argument('--consider_equivalent_hydrogens', action='store_true', dest='equiv_Hs',
                         help='Create equivalent driving coordinates for the same reaction with different but '
                              'equivalent hydrogens, i.e., hydrogens attached to non-cyclic tetrahedral carbons')
+    parser.add_argument('--minbreak', type=int, default=0, metavar='B', help='Minimum number of connections to break')
+    parser.add_argument('--minform', type=int, default=0, metavar='F', help='Minimum number of connections to form')
+    parser.add_argument('--minchange', type=int, default=1, metavar='F', help='Minimum number of connections to change')
     parser.add_argument(
         '--config_qchem', metavar='FILE',
         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'qchem.gsm.start'),
