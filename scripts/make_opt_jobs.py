@@ -15,6 +15,16 @@ def main():
     print('Loading data...')
     data = pickle_load(args.mol_data, compressed=True)
 
+    if args.ignore is not None:
+        ignore = set()
+        with open(args.ignore) as f:
+            for line in f:
+                for s in line.strip().split():
+                    if 'dsgdb9nsd' in s:
+                        ignore.add(s)
+                        break
+        data = [mol_data for mol_data in data if mol_data.file_name not in ignore]
+
     if args.max_heavy > 0:
         data = [mol_data for mol_data in data if sum(1 for s in mol_data.elements if s != 'H') <= args.max_heavy]
     if args.random:
@@ -49,6 +59,7 @@ def parse_args():
                         help='Select molecules in order instead of randomly')
     parser.add_argument('--nconf', type=int, default=100, metavar='C',
                         help='Number of conformers to generate for lowest-energy conformer search')
+    parser.add_argument('--ignore', metavar='FILE', help='File containing list of QM9 file names to ignore')
     parser.add_argument(
         '--config', metavar='FILE',
         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'qchem.opt_freq'),
