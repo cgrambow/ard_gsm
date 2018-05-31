@@ -255,8 +255,9 @@ class MolGraph(object):
     Note: Atom indices start at 1.
     """
 
-    def __init__(self, atoms=None, symbols=None, coords=None):
+    def __init__(self, atoms=None, symbols=None, coords=None, energy=None):
         self.atoms = atoms or []
+        self.energy = energy
 
         if not self.atoms and symbols is not None:
             for idx, symbol in enumerate(symbols):
@@ -308,7 +309,7 @@ class MolGraph(object):
         del connection.atom2.connections[connection.atom1]
 
     def copy(self, deep=False):
-        other = MolGraph()
+        other = MolGraph(energy=self.energy)
         atoms = self.atoms
         mapping = {}
         for atom in atoms:
@@ -339,6 +340,7 @@ class MolGraph(object):
             connections = atom.connections
             new.add_atom(atom)
             atom.connections = connections
+        new.energy = self.energy + other.energy
         return new
 
     def split(self):
@@ -365,6 +367,7 @@ class MolGraph(object):
 
         new = [new2]
         new.extend(new1.split())
+        new.energy = None
         return new
 
     def sort_atoms(self):
