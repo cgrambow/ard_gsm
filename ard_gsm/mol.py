@@ -271,6 +271,19 @@ class MolGraph(object):
         for atom in self.atoms:
             yield atom
 
+    def to_rmg_mol(self):
+        import rmgpy.molecule.molecule as rmg_molecule
+
+        rmg_atoms = [rmg_molecule.Atom(element=atom.symbol, coords=atom.coords) for atom in self]
+        mapping = {atom: rmg_atom for atom, rmg_atom in zip(self.atoms, rmg_atoms)}
+        rmg_bonds = [rmg_molecule.Bond(mapping[connection.atom1], mapping[connection.atom2])
+                     for connection in self.get_all_connections()]
+        rmg_mol = rmg_molecule.Molecule(atoms=rmg_atoms)
+        for bond in rmg_bonds:
+            rmg_mol.addBond(bond)
+
+        return rmg_mol
+
     def add_atom(self, atom):
         self.atoms.append(atom)
         atom.connections = {}
@@ -372,6 +385,15 @@ class MolGraph(object):
 
     def sort_atoms(self):
         self.atoms.sort(key=lambda a: a.idx)
+
+    def is_isomorphic(self, other):
+        """
+        Test if self is isomorphic with other, ignoring atom indices.
+        Requires RMG to do the isomorphism check.
+        """
+        self_rmg = self.to_rmg_mol()
+        other_rmg = other.to_rmg_mol()
+        return self_rmg.isIsomorphic(other_rmg)
 
     def set_coords(self, coords):
         """
