@@ -10,6 +10,39 @@ from rdkit.Chem import AllChem, GetPeriodicTable
 _rdkit_periodic_table = GetPeriodicTable()
 
 
+def smiles_to_rdkit(smi, gen_3d=True, nconf=100):
+    """
+    Convert smiles to RDKit molecule.
+    Tries to generate the lowest-energy conformer.
+    """
+    mol = Chem.MolFromSmiles(smi)
+    mol = Chem.AddHs(mol)
+
+    if gen_3d:
+        cids = AllChem.EmbedMultipleConfs(mol, nconf, AllChem.ETKDG())
+
+        AllChem.MMFFSanitizeMolecule(mol)
+        mmff_props = AllChem.MMFFGetMoleculeProperties(mol)
+
+        energies = []
+        for cid in cids:
+            ff = AllChem.MMFFGetMoleculeForceField(mol, mmff_props, confId=cid)
+            ff.Minimize()
+            energy = ff.CalcEnergy()
+            energies.append(energy)
+
+        energies = np.asarray(energies)
+        min_energy_idx = np.argsort(energies)[0]
+
+        new_mol = Chem.Mol(mol)
+        new_mol.RemoveAllConformers()
+        min_conf = mol.GetConformer(cids[min_energy_idx])
+        new_mol.AddConformer(min_conf, assignId=True)
+        mol = new_mol
+
+    return mol
+
+
 class MolData(object):
     """
     Class to parse molecular data from the QM9 dataset.
@@ -132,32 +165,7 @@ class MolData(object):
         Currently only uses SMILES to generate the 3D structure.
         Tries to generate the lowest-energy conformer.
         """
-        mol = Chem.MolFromSmiles(self.smiles)
-        mol = Chem.AddHs(mol)
-
-        if gen_3d:
-            cids = AllChem.EmbedMultipleConfs(mol, nconf, AllChem.ETKDG())
-
-            AllChem.MMFFSanitizeMolecule(mol)
-            mmff_props = AllChem.MMFFGetMoleculeProperties(mol)
-
-            energies = []
-            for cid in cids:
-                ff = AllChem.MMFFGetMoleculeForceField(mol, mmff_props, confId=cid)
-                ff.Minimize()
-                energy = ff.CalcEnergy()
-                energies.append(energy)
-
-            energies = np.asarray(energies)
-            min_energy_idx = np.argsort(energies)[0]
-
-            new_mol = Chem.Mol(mol)
-            new_mol.RemoveAllConformers()
-            min_conf = mol.GetConformer(cids[min_energy_idx])
-            new_mol.AddConformer(min_conf, assignId=True)
-            mol = new_mol
-
-        return mol
+        return smiles_to_rdkit(self.smiles, gen_3d=gen_3d, nconf=nconf)
 
 
 class Atom(object):
