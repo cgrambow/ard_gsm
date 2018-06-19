@@ -85,6 +85,16 @@ class QChem(object):
         else:
             raise QChemError('Geometry not found')
 
+    def get_moments_of_inertia(self):
+        for line in reversed(self.log):
+            if 'SCF failed to converge' in line:
+                raise QChemError('SCF failed to converge')
+            elif 'Eigenvalues --' in line:
+                inertia = [float(i) * 0.52917721092**2.0 for i in line.split()[-3:]]  # Convert to amu*angstrom^2
+                if inertia[0] == 0.0:  # Linear rotor
+                    inertia = np.sqrt(inertia[1]*inertia[2])
+                return inertia
+
     def get_frequencies(self):
         freqs = []
         for line in reversed(self.log):
