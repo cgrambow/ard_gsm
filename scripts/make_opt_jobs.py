@@ -33,8 +33,15 @@ def main():
         data = data[:args.num]
 
     print('Generating geometries and searching conformers...')
-    mols = [mol_data.to_rdkit(nconf=args.nconf) for mol_data in data]
-    names = [mol_data.file_name for mol_data in data]
+    mols, names = [], []
+    for mol_data in data:
+        try:
+            mol = mol_data.to_rdkit(nconf=args.nconf)
+        except:  # Ignore RDKit sanitization errors
+            continue
+        else:
+            mols.append(mol)
+            names.append(mol_data.file_name)
 
     if not os.path.exists(args.out_dir):
         os.makedirs(args.out_dir)
