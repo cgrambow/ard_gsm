@@ -54,8 +54,8 @@ def parse_args():
     parser.add_argument('out_dir', metavar='ODIR', help='Path to output directory')
     parser.add_argument(
         '--config', metavar='FILE',
-        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'qchem.freq'),
-        help='Configuration file for frequency jobs in Q-Chem'
+        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'qchem.ts_opt_freq'),
+        help='Configuration file for frequency (with opt) jobs in Q-Chem'
     )
     return parser.parse_args()
 
