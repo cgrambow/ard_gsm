@@ -16,7 +16,7 @@ def main():
         for string_file in glob.iglob(os.path.join(gsm_dir, 'stringfile.xyz*')):
             num = string_file[-4:]
             xyzs = read_xyz_file(string_file, with_energy=True)
-            symbols, coords = max(xyzs, key=lambda x: x[2])
+            symbols, coords, _ = max(xyzs, key=lambda x: x[2])
             path = os.path.join(gsm_dir, 'optfreq{}.in'.format(num))
             q = QChem(config_file=args.config)
             q.make_input_from_coords(path, symbols, coords)
