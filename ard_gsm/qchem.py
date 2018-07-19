@@ -57,8 +57,12 @@ class QChem(object):
             for line in self.config:
                 f.write(line + '\n')
 
-    def get_energy(self):
-        for line in reversed(self.log):
+    def get_energy(self, first=False):
+        if first:
+            iterable = self.log
+        else:
+            iterable = reversed(self.log)
+        for line in iterable:
             if 'SCF failed to converge' in line:
                 raise QChemError('SCF failed to converge')
             elif 'total energy' in line:  # Double hybrid methods
@@ -68,8 +72,12 @@ class QChem(object):
         else:
             raise QChemError('Energy not found')
 
-    def get_geometry(self):
-        for i in reversed(xrange(len(self.log))):
+    def get_geometry(self, first=False):
+        if first:
+            iterable = xrange(len(self.log))
+        else:
+            iterable = reversed(xrange(len(self.log)))
+        for i in iterable:
             line = self.log[i]
             if 'SCF failed to converge' in line:
                 raise QChemError('SCF failed to converge')
