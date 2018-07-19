@@ -11,6 +11,7 @@ import re
 import shutil
 
 from ard_gsm.mol import MolGraph
+from ard_gsm.qchem import QChem
 from ard_gsm.reaction import group_reactions_by_products, group_reactions_by_connection_changes
 from ard_gsm.util import iter_sub_dirs, read_xyz_file
 
@@ -36,6 +37,7 @@ def main():
 
         reactions = {}
         string_files = {}
+        ts_xyzs = {}
         ntotal = 0
         for gsm_log in glob.iglob(os.path.join(gsm_sub_dir, 'gsm*.out')):
             ntotal += 1
@@ -45,6 +47,7 @@ def main():
 
             if is_successful(gsm_log):
                 xyzs = read_xyz_file(string_file, with_energy=True)
+                ts_xyzs[num] = max(xyzs, key=lambda x: x[2])
                 string = [MolGraph(symbols=xyz[0], coords=xyz[1], energy=xyz[2]) for xyz in xyzs]
                 reactant = string[0]
                 product = string[-1]
@@ -79,15 +82,16 @@ def main():
             os.mkdir(out_dir)
 
         for group in reaction_groups:
-            barriers = []
-            for num, rxn in group.iteritems():
-                reactant_energy = rxn[0].energy
-                ts_energy = max(mol.energy for mol in rxn)
-                barriers.append((num, ts_energy-reactant_energy))
-            barriers.sort(key=lambda x: x[1])
-            extracted_nums = [num for num, _ in barriers[:args.nextract]]
+            ts_energies = [(num, ts_xyzs[num][2]) for num in group]
+            ts_energies.sort(key=lambda x: x[1])
+            extracted_nums = [num for num, _ in ts_energies[:args.nextract]]
+
             for num in extracted_nums:
                 shutil.copy(string_files[num], out_dir)
+                symbols, coords, _ = ts_xyzs[num]
+                path = os.path.join(gsm_sub_dir, 'ts_optfreq{:04}.in'.format(num))
+                q = QChem(config_file=args.config)
+                q.make_input_from_coords(path, symbols, coords)
 
     stats_file.close()
 
@@ -111,6 +115,11 @@ def parse_args():
                         help='Number of duplicate reactions of the same type to extract (sorted by lowest barrier)')
     parser.add_argument('--group_by_connection_changes', action='store_true',
                         help='Use connection changes instead of product identities to distinguish reactions')
+    parser.add_argument(
+        '--config', metavar='FILE',
+        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'qchem.ts_opt_freq'),
+        help='Configuration file for TS frequency (with opt) jobs in Q-Chem'
+    )
     return parser.parse_args()
 
 
