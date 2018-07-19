@@ -292,6 +292,21 @@ class MolGraph(object):
 
         return rmg_mol
 
+    def perceive_smiles(self):
+        """
+        Using the geometry, perceive the corresponding SMILES
+        with bond orders using Open Babel.
+        """
+        import pybel
+
+        symbols = [atom.symbol for atom in self]
+        coords = np.vstack([atom.coords for atom in self])
+        cblock = ['{0}  {1[0]: .10f}  {1[1]: .10f}  {1[2]: .10f}'.format(s, c) for s, c in zip(symbols, coords)]
+        xyz = str(len(symbols)) + '\n\n' + '\n'.join(cblock)
+        mol = pybel.readstring('xyz', xyz)
+
+        return mol.write('can').strip()
+
     def add_atom(self, atom):
         self.atoms.append(atom)
         atom.connections = {}
