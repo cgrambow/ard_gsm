@@ -89,7 +89,7 @@ def main():
             for num in extracted_nums:
                 shutil.copy(string_files[num], out_dir)
                 symbols, coords, _ = ts_xyzs[num]
-                path = os.path.join(gsm_sub_dir, 'ts_optfreq{:04}.in'.format(num))
+                path = os.path.join(out_dir, 'ts_optfreq{:04}.in'.format(num))
                 q = QChem(config_file=args.config)
                 q.make_input_from_coords(path, symbols, coords)
 
