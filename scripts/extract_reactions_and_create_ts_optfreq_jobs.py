@@ -47,7 +47,7 @@ def main():
 
             if is_successful(gsm_log):
                 xyzs = read_xyz_file(string_file, with_energy=True)
-                ts_xyzs[num] = max(xyzs, key=lambda x: x[2])
+                ts_xyzs[num] = max(xyzs[1:-1], key=lambda x: x[2])  # Don't go to last xyz in case product opt failed
                 string = [MolGraph(symbols=xyz[0], coords=xyz[1], energy=xyz[2]) for xyz in xyzs]
                 reactant = string[0]
                 product = string[-1]
