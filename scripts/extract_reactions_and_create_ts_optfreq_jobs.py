@@ -51,6 +51,10 @@ def main():
                 string = [MolGraph(symbols=xyz[0], coords=xyz[1], energy=xyz[2]) for xyz in xyzs]
                 reactant = string[0]
                 product = string[-1]
+                last_ediff = product.energy - string[-2].energy
+                if last_ediff > 0.0:
+                    if not last_ediff > 1000.0:  # If >1000.0, product opt failed, but structure is probably fine
+                        continue  # Sometimes GSM produces weird intermediate structures that cause incorrect products
                 reactant.infer_connections()
                 product.infer_connections()
                 reactions[num] = string
