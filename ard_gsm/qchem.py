@@ -40,17 +40,18 @@ class QChem(object):
                 else:
                     raise QChemError('Q-Chem job has not completed!')
 
-    def make_input(self, path):
+    def make_input(self, path, charge=0, multiplicity=1):
         symbols = [atom.GetSymbol() for atom in self.mol.GetAtoms()]
         coords = self.mol.GetConformers()[0].GetPositions()
-        self.make_input_from_coords(path, symbols, coords)
+        self.make_input_from_coords(path, symbols, coords, charge=charge, multiplicity=multiplicity)
 
-    def make_input_from_coords(self, path, symbols, coords):
+    def make_input_from_coords(self, path, symbols, coords, charge=0, multiplicity=1):
         for i, line in enumerate(self.config):
             if line.startswith('$molecule'):
                 cblock = ['{0}  {1[0]: .10f}  {1[1]: .10f}  {1[2]: .10f}'.format(symbol, xyz)
                           for symbol, xyz in zip(symbols, coords)]
-                self.config[(i+2):(i+2)] = cblock
+                cblock.insert(0, '{} {}'.format(charge, multiplicity))
+                self.config[(i+1):(i+1)] = cblock
                 break  # If there are more than 1 molecule block, only fill the first one
 
         with open(path, 'w') as f:
