@@ -409,6 +409,19 @@ class MolGraph(object):
     def sort_atoms(self):
         self.atoms.sort(key=lambda a: a.idx)
 
+    def is_radical(self):
+        """
+        Determine whether or not the molecule is a radical based on the number
+        of valence electrons for each atom. If the total number of valence
+        electrons is odd, then it is a radical. This assumes that molecules
+        with an even number of electrons are singlets. This method also assumes
+        that none of the atoms are charged.
+        """
+        valence_electrons = {'H': 1, 'C': 4, 'N': 5, 'O': 6, 'F': 7, 'P': 5, 'S': 6, 'Cl': 7, 'Br': 7, 'I': 7}
+        symbols = [atom.symbol for atom in self]
+        total_valence_electrons = sum(valence_electrons[s] for s in symbols)
+        return bool(total_valence_electrons % 2)
+
     def is_isomorphic(self, other):
         """
         Test if self is isomorphic with other, ignoring atom indices.
@@ -480,6 +493,8 @@ class MolGraph(object):
         carbons they are attached to have 4 connections, which means this
         method does not yet work for radicals.
         """
+        if self.is_radical():
+            raise NotImplementedError('Cannot yet label equivalent hydrogens for radicals')
         for atom in self:
             if (atom.symbol.upper() == 'C'
                     and len(atom.connections) == 4
