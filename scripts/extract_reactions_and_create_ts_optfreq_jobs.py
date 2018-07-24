@@ -29,7 +29,8 @@ def main():
         ['ard_dir', 'ntotal',
          'nsuccess', 'fsuccess',
          'nunique', 'funique_success', 'funique_total',
-         'nduplicate', 'fduplicate']
+         'nduplicate', 'fduplicate',
+         'nisomorphic']
     )
 
     for gsm_sub_dir in iter_sub_dirs(args.gsm_dir):
@@ -38,7 +39,7 @@ def main():
         reactions = {}
         string_files = {}
         ts_xyzs = {}
-        ntotal = 0
+        ntotal = nisomorphic = 0
         for gsm_log in glob.iglob(os.path.join(gsm_sub_dir, 'gsm*.out')):
             ntotal += 1
             num = int(num_regex.search(os.path.basename(gsm_log)).group(0))
@@ -47,7 +48,6 @@ def main():
 
             if is_successful(gsm_log):
                 xyzs = read_xyz_file(string_file, with_energy=True)
-                ts_xyzs[num] = max(xyzs[1:-1], key=lambda x: x[2])  # Don't go to last xyz in case product opt failed
                 string = [MolGraph(symbols=xyz[0], coords=xyz[1], energy=xyz[2]) for xyz in xyzs]
                 reactant = string[0]
                 product = string[-1]
@@ -57,14 +57,18 @@ def main():
                         continue  # Sometimes GSM produces weird intermediate structures that cause incorrect products
                 reactant.infer_connections()
                 product.infer_connections()
+                if not args.keep_isomorphic_reactions and reactant.is_isomorphic(product):
+                    nisomorphic += 1
+                    continue
                 reactions[num] = string
+                ts_xyzs[num] = max(xyzs[1:-1], key=lambda x: x[2])  # Don't go to last xyz in case product opt failed
 
         if args.group_by_connection_changes:
             reaction_groups = group_reactions_by_connection_changes(reactions)
         else:
             reaction_groups = group_reactions_by_products(reactions)
 
-        # Statistics to do not take into consideration bus errors!
+        # Statistics do not take into consideration bus errors!
         nsuccess = len(reactions)
         if ntotal == 0 or nsuccess == 0:
             continue
@@ -78,7 +82,8 @@ def main():
             [os.path.basename(gsm_sub_dir), ntotal,
              nsuccess, fsuccess,
              nunique, funique_success, funique_total,
-             nduplicate, fduplicate]
+             nduplicate, fduplicate,
+             nisomorphic]
         )
 
         out_dir = os.path.join(pdir, os.path.basename(gsm_sub_dir))
@@ -119,6 +124,8 @@ def parse_args():
                         help='Number of duplicate reactions of the same type to extract (sorted by lowest barrier)')
     parser.add_argument('--group_by_connection_changes', action='store_true',
                         help='Use connection changes instead of product identities to distinguish reactions')
+    parser.add_argument('--keep_isomorphic_reactions', action='store_true',
+                        help='Consider reactions where the product is isomorphic with the reactant')
     parser.add_argument(
         '--config', metavar='FILE',
         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'qchem.ts_opt_freq'),
