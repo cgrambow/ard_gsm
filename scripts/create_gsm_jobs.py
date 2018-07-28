@@ -41,7 +41,11 @@ def main():
         f.write('minchange = {}\n'.format(args.minchange))
 
     for log_idx, logfile in enumerate(glob.iglob(os.path.join(args.qlog_dir, '*.log'))):
-        log = QChem(logfile=logfile)
+        try:
+            log = QChem(logfile=logfile)
+        except QChemError as e:
+            print(e)
+            continue
 
         # Check frequencies
         try:

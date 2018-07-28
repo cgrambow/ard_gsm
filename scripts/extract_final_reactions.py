@@ -41,15 +41,13 @@ def main():
             string_file = os.path.join(gsm_dir, 'stringfile.xyz{:04}'.format(num))
 
             # Check how much energy and geometry changed during TS optimization and save TS energy
-            qts = QChem(logfile=ts_file)
             try:
-                ts_e0 = qts.get_energy()
+                qts = QChem(logfile=ts_file)
             except QChemError as e:
-                if 'SCF failed to converge' in str(e):
-                    print('Ignored {} because of SCF failure'.format(ts_file))
-                    continue
-                else:
-                    raise
+                print(e)
+                continue
+
+            ts_e0 = qts.get_energy()
             ts_energy = ts_e0 + qts.get_zpe()  # Add ZPE
 
             edist = abs(ts_e0 - qts.get_energy(first=True)) * 627.5095
