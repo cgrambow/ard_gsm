@@ -34,11 +34,9 @@ class QChem(object):
         else:
             with open(logfile) as f:
                 self.log = f.read().splitlines()
-                for line in reversed(self.log):
-                    if 'Total job time' in line:
-                        break
-                else:
-                    raise QChemError('Q-Chem job has not completed!')
+                for line in self.log:
+                    if 'fatal error' in line:
+                        raise QChemError('Q-Chem job {} had an error!'.format(logfile))
 
     def make_input(self, path, charge=0, multiplicity=1):
         symbols = [atom.GetSymbol() for atom in self.mol.GetAtoms()]
