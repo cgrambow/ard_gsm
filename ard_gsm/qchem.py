@@ -123,3 +123,10 @@ class QChem(object):
                 return float(line.split()[-2]) / 627.5095  # Convert to Hartree
         else:
             raise QChemError('ZPE not found')
+
+    def get_multiplicity(self):
+        for i, line in enumerate(self.log):
+            if '$molecule' in line:
+                return int(self.log[i+1].strip().split()[-1])
+        else:
+            raise QChemError('Multiplicity not found')
