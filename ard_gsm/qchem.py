@@ -29,6 +29,7 @@ class QChem(object):
         with open(config_file) as f:
             self.config = [line.strip() for line in f]
 
+        self.logfile = logfile
         if logfile is None:
             self.log = None
         else:
@@ -63,13 +64,13 @@ class QChem(object):
             iterable = reversed(self.log)
         for line in iterable:
             if 'SCF failed to converge' in line:
-                raise QChemError('SCF failed to converge')
+                raise QChemError('SCF failed to converge in {}'.format(self.logfile))
             elif 'total energy' in line:  # Double hybrid methods
                 return float(line.split()[-2])
             elif 'energy in the final basis set' in line:  # Other DFT methods
                 return float(line.split()[-1])
         else:
-            raise QChemError('Energy not found')
+            raise QChemError('Energy not found in {}'.format(self.logfile))
 
     def get_geometry(self, first=False):
         if first:
@@ -79,7 +80,7 @@ class QChem(object):
         for i in iterable:
             line = self.log[i]
             if 'SCF failed to converge' in line:
-                raise QChemError('SCF failed to converge')
+                raise QChemError('SCF failed to converge in {}'.format(self.logfile))
             elif 'Standard Nuclear Orientation' in line:
                 symbols, coords = [], []
                 for line in self.log[(i+3):]:
@@ -90,12 +91,12 @@ class QChem(object):
                     else:
                         return symbols, np.array(coords)
         else:
-            raise QChemError('Geometry not found')
+            raise QChemError('Geometry not found in {}'.format(self.logfile))
 
     def get_moments_of_inertia(self):
         for line in reversed(self.log):
             if 'SCF failed to converge' in line:
-                raise QChemError('SCF failed to converge')
+                raise QChemError('SCF failed to converge in {}'.format(self.logfile))
             elif 'Eigenvalues --' in line:
                 inertia = [float(i) * 0.52917721092**2.0 for i in line.split()[-3:]]  # Convert to amu*angstrom^2
                 if inertia[0] == 0.0:  # Linear rotor
@@ -106,27 +107,27 @@ class QChem(object):
         freqs = []
         for line in reversed(self.log):
             if 'SCF failed to converge' in line:
-                raise QChemError('SCF failed to converge')
+                raise QChemError('SCF failed to converge in {}'.format(self.logfile))
             elif 'Frequency' in line:
                 freqs.extend([float(f) for f in reversed(line.split()[1:])])
             elif 'VIBRATIONAL ANALYSIS' in line:
                 freqs.reverse()
                 return np.array(freqs)
         else:
-            raise QChemError('Frequencies not found')
+            raise QChemError('Frequencies not found in {}'.format(self.logfile))
 
     def get_zpe(self):
         for line in reversed(self.log):
             if 'SCF failed to converge' in line:
-                raise QChemError('SCF failed to converge')
+                raise QChemError('SCF failed to converge in {}'.format(self.logfile))
             elif 'Zero point vibrational energy' in line:
                 return float(line.split()[-2]) / 627.5095  # Convert to Hartree
         else:
-            raise QChemError('ZPE not found')
+            raise QChemError('ZPE not found in {}'.format(self.logfile))
 
     def get_multiplicity(self):
         for i, line in enumerate(self.log):
             if '$molecule' in line:
                 return int(self.log[i+1].strip().split()[-1])
         else:
-            raise QChemError('Multiplicity not found')
+            raise QChemError('Multiplicity not found in {}'.format(self.logfile))
