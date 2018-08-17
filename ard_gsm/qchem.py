@@ -14,8 +14,7 @@ class QChemError(Exception):
 class QChem(object):
     """
     `mol` is an RDKit molecule with Hs already added. It should already
-    contain the 3D geometry of the lowest-energy conformer. The options in the
-    `qchem.opt` config file should be set as desired.
+    contain the 3D geometry of the lowest-energy conformer.
 
     The methods of this class have only been validated for Q-Chem 5.1 DFT
     calculations.
@@ -25,7 +24,10 @@ class QChem(object):
         self.mol = mol  # RDKit molecule with Hs added
 
         if config_file is None:
-            config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'qchem.opt')
+            config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                       os.pardir,
+                                       'config',
+                                       'qchem.opt_freq')
         with open(config_file) as f:
             self.config = [line.strip() for line in f]
 
