@@ -30,6 +30,9 @@ def main():
             except QChemError as e:
                 print(e)
                 continue
+            if any(freq < 0.0 for freq in qp.get_frequencies()):
+                print('Ignored {} because of negative frequency'.format(prod_file))
+                continue
 
             xyzs = read_xyz_file(string_file, with_energy=True)
             ts_xyz = max(xyzs[1:-1], key=lambda x: x[2])
