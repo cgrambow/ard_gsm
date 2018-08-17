@@ -444,6 +444,24 @@ class MolGraph(object):
         for atom, xyz in zip(self.atoms, coords):
             atom.coords = xyz
 
+    def get_coords(self):
+        """
+        Get coordinates in the order specified by the atom indices.
+        """
+        assert all(atom.idx is not None for atom in self)
+        atoms = self.atoms[:]
+        atoms.sort(key=lambda a: a.idx)
+        return np.array([atom.coords for atom in atoms])
+
+    def get_symbols(self):
+        """
+        Get symbols in the order specified by the atom indices.
+        """
+        assert all(atom.idx is not None for atom in self)
+        atoms = self.atoms[:]
+        atoms.sort(key=lambda a: a.idx)
+        return [atom.symbol for atom in atoms]
+
     def infer_connections(self):
         """
         Delete connections and set them again based on coordinates.
