@@ -1,124 +1,76 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
 
-from __future__ import division
-
 import argparse
-import csv
 import glob
 import os
 import re
-import shutil
 
 from ard_gsm.mol import MolGraph
-from ard_gsm.qchem import QChem
+from ard_gsm.qchem import QChem, QChemError
 from ard_gsm.reaction import group_reactions_by_products, group_reactions_by_connection_changes
 from ard_gsm.util import iter_sub_dirs, read_xyz_file
 
 
 def main():
     args = parse_args()
-
-    pdir = args.out_dir
-    if not os.path.exists(pdir):
-        os.makedirs(pdir)
     num_regex = re.compile(r'\d+')
-    stats_file = open(os.path.join(pdir, 'statistics.csv'), 'w')
-    stats_writer = csv.writer(stats_file, quoting=csv.QUOTE_NONNUMERIC)
-    stats_writer.writerow(
-        ['ard_dir', 'ntotal',
-         'nsuccess', 'fsuccess',
-         'nunique', 'funique_success', 'funique_total',
-         'nduplicate', 'fduplicate',
-         'nisomorphic']
-    )
 
-    for gsm_sub_dir in iter_sub_dirs(args.gsm_dir):
-        print('Extracting from {}...'.format(gsm_sub_dir))
+    for prod_sub_dir in iter_sub_dirs(args.prod_dir):
+        sub_dir_name = os.path.basename(prod_sub_dir)
+        print('Extracting from {}...'.format(sub_dir_name))
 
         reactions = {}
-        string_files = {}
-        ts_xyzs = {}
-        ntotal = nisomorphic = 0
-        for gsm_log in glob.iglob(os.path.join(gsm_sub_dir, 'gsm*.out')):
-            ntotal += 1
-            num = int(num_regex.search(os.path.basename(gsm_log)).group(0))
-            string_file = os.path.join(gsm_sub_dir, 'stringfile.xyz{:04}'.format(num))
-            string_files[num] = string_file
+        for prod_file in glob.iglob(os.path.join(prod_sub_dir, 'prod_optfreq*.out')):
+            num = int(num_regex.search(os.path.basename(prod_file)).group(0))
+            string_file = os.path.join(args.gsm_dir, sub_dir_name, 'stringfile.xyz{:04}'.format(num))
 
-            if is_successful(gsm_log):
-                xyzs = read_xyz_file(string_file, with_energy=True)
-                string = [MolGraph(symbols=xyz[0], coords=xyz[1], energy=xyz[2]) for xyz in xyzs]
-                reactant = string[0]
-                product = string[-1]
-                last_ediff = product.energy - string[-2].energy
-                if last_ediff > 0.0:
-                    if not last_ediff > 1000.0:  # If >1000.0, product opt failed, but structure is probably fine
-                        continue  # Sometimes GSM produces weird intermediate structures that cause incorrect products
-                reactant.infer_connections()
-                product.infer_connections()
-                if not args.keep_isomorphic_reactions and reactant.is_isomorphic(product):
-                    nisomorphic += 1
-                    continue
-                reactions[num] = string
-                ts_xyzs[num] = max(xyzs[1:-1], key=lambda x: x[2])  # Don't go to last xyz in case product opt failed
+            try:
+                qp = QChem(logfile=prod_file)
+            except QChemError as e:
+                print(e)
+                continue
+
+            xyzs = read_xyz_file(string_file, with_energy=True)
+            ts_xyz = max(xyzs[1:-1], key=lambda x: x[2])
+            product_symbols, product_coords = qp.get_geometry()
+
+            # Reactant and TS energies are based on string and are relative to the reactant
+            reactant = MolGraph(symbols=xyzs[0][0], coords=xyzs[0][1], energy=xyzs[0][2])
+            ts = MolGraph(symbols=ts_xyz[0], coords=ts_xyz[1], energy=ts_xyz[2])
+            product = MolGraph(symbols=product_symbols, coords=product_coords)  # Don't bother assigning energy
+            reactant.infer_connections()
+            product.infer_connections()
+            if not args.keep_isomorphic_reactions and reactant.is_isomorphic(product):
+                print('Ignored {} because product is isomorphic with reactant'.format(prod_file))
+                continue
+            reactions[num] = [reactant, ts, product]
 
         if args.group_by_connection_changes:
             reaction_groups = group_reactions_by_connection_changes(reactions)
         else:
             reaction_groups = group_reactions_by_products(reactions)
 
-        # Statistics do not take into consideration bus errors!
-        nsuccess = len(reactions)
-        if ntotal == 0 or nsuccess == 0:
-            continue
-        fsuccess = nsuccess / ntotal
-        nunique = len(reaction_groups)
-        funique_success = nunique / nsuccess
-        funique_total = nunique / ntotal
-        nduplicate = nsuccess - nunique
-        fduplicate = nduplicate / nsuccess
-        stats_writer.writerow(
-            [os.path.basename(gsm_sub_dir), ntotal,
-             nsuccess, fsuccess,
-             nunique, funique_success, funique_total,
-             nduplicate, fduplicate,
-             nisomorphic]
-        )
-
-        out_dir = os.path.join(pdir, os.path.basename(gsm_sub_dir))
+        out_dir = os.path.join(args.out_dir, sub_dir_name)
         if not os.path.exists(out_dir):
-            os.mkdir(out_dir)
+            os.makedirs(out_dir)
 
         for group in reaction_groups:
-            ts_energies = [(num, ts_xyzs[num][2]) for num in group]
-            ts_energies.sort(key=lambda x: x[1])
-            extracted_nums = [num for num, _ in ts_energies[:args.nextract]]
+            # Only consider TS energies instead of "barriers" b/c energies are relative to reactant
+            reactions_in_group = group.items()  # Make list
+            reactions_in_group.sort(key=lambda r: r[1][1].energy)  # Index 1 is TS
 
-            for num in extracted_nums:
-                shutil.copy(string_files[num], out_dir)
-                symbols, coords, _ = ts_xyzs[num]
+            for num, rxn in reactions_in_group[:args.nextract]:
+                ts = rxn[1]
                 path = os.path.join(out_dir, 'ts_optfreq{:04}.in'.format(num))
-                q = QChem(config_file=args.config)
-                q.make_input_from_coords(path, symbols, coords)
-
-    stats_file.close()
-
-
-def is_successful(gsm_log):
-    """
-    Success is defined as having converged to a transition state.
-    """
-    with open(gsm_log) as f:
-        for line in reversed(f.readlines()):
-            if '-XTS-' in line or '-TS-' in line:
-                return True
-    return False
+                qts = QChem(config_file=args.config)
+                qts.make_input_from_coords(path, ts.get_symbols(), ts.get_coords())
 
 
 def parse_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('gsm_dir', metavar='GSMDIR', help='Path to directory containing GSM folders')
+    parser.add_argument('prod_dir', metavar='PDIR', help='Path to directory containing folders with product opts')
     parser.add_argument('out_dir', metavar='ODIR', help='Path to output directory')
     parser.add_argument('-n', '--nextract', type=int, default=4, metavar='N',
                         help='Number of duplicate reactions of the same type to extract (sorted by lowest barrier)')
@@ -129,7 +81,7 @@ def parse_args():
     parser.add_argument(
         '--config', metavar='FILE',
         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'qchem.ts_opt_freq'),
-        help='Configuration file for TS frequency (with opt) jobs in Q-Chem'
+        help='Configuration file for TS optfreq jobs in Q-Chem'
     )
     return parser.parse_args()
 
