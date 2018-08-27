@@ -18,6 +18,13 @@ def main():
 
     for prod_sub_dir in iter_sub_dirs(args.prod_dir):
         sub_dir_name = os.path.basename(prod_sub_dir)
+
+        out_dir = os.path.join(args.out_dir, sub_dir_name)
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+        elif not args.overwrite:
+            continue
+
         print('Extracting from {}...'.format(sub_dir_name))
 
         reactions = {}
@@ -54,10 +61,6 @@ def main():
         else:
             reaction_groups = group_reactions_by_products(reactions)
 
-        out_dir = os.path.join(args.out_dir, sub_dir_name)
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-
         for group in reaction_groups:
             # Only consider TS energies instead of "barriers" b/c energies are relative to reactant
             reactions_in_group = group.items()  # Make list
@@ -81,6 +84,7 @@ def parse_args():
                         help='Use connection changes instead of product identities to distinguish reactions')
     parser.add_argument('--keep_isomorphic_reactions', action='store_true',
                         help='Consider reactions where the product is isomorphic with the reactant')
+    parser.add_argument('--overwrite', action='store_true', help='Overwrite input files in existing directories')
     parser.add_argument(
         '--config', metavar='FILE',
         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'qchem.ts_opt_freq'),
