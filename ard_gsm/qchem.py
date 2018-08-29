@@ -110,6 +110,27 @@ class QChem(object):
         else:
             raise QChemError('Frequencies not found in {}'.format(self.logfile))
 
+    def get_normal_modes(self):
+        modes = []
+        for i in reversed(xrange(len(self.log))):
+            line = self.log[i]
+            if 'Raman Active' in line:
+                mode1, mode2, mode3 = [], [], []
+                for line in self.log[(i+2):]:
+                    if 'TransDip' not in line:
+                        vals = line.split()[1:]
+                        mode1.append([float(v) for v in vals[:3]])
+                        mode2.append([float(v) for v in vals[3:6]])
+                        mode3.append([float(v) for v in vals[6:]])
+                    else:
+                        modes.extend([np.array(mode3), np.array(mode2), np.array(mode1)])
+                        break
+            elif 'VIBRATIONAL ANALYSIS' in line:
+                modes.reverse()
+                return modes
+        else:
+            raise QChemError('Normal modes not found in {}'.format(self.logfile))
+
     def get_zpe(self):
         for line in reversed(self.log):
             if 'Zero point vibrational energy' in line:
