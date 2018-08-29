@@ -65,9 +65,7 @@ class QChem(object):
         else:
             iterable = reversed(self.log)
         for line in iterable:
-            if 'SCF failed to converge' in line:
-                raise QChemError('SCF failed to converge in {}'.format(self.logfile))
-            elif 'total energy' in line:  # Double hybrid methods
+            if 'total energy' in line:  # Double hybrid methods
                 return float(line.split()[-2])
             elif 'energy in the final basis set' in line:  # Other DFT methods
                 return float(line.split()[-1])
@@ -81,9 +79,7 @@ class QChem(object):
             iterable = reversed(xrange(len(self.log)))
         for i in iterable:
             line = self.log[i]
-            if 'SCF failed to converge' in line:
-                raise QChemError('SCF failed to converge in {}'.format(self.logfile))
-            elif 'Standard Nuclear Orientation' in line:
+            if 'Standard Nuclear Orientation' in line:
                 symbols, coords = [], []
                 for line in self.log[(i+3):]:
                     if '----------' not in line:
@@ -97,9 +93,7 @@ class QChem(object):
 
     def get_moments_of_inertia(self):
         for line in reversed(self.log):
-            if 'SCF failed to converge' in line:
-                raise QChemError('SCF failed to converge in {}'.format(self.logfile))
-            elif 'Eigenvalues --' in line:
+            if 'Eigenvalues --' in line:
                 inertia = [float(i) * 0.52917721092**2.0 for i in line.split()[-3:]]  # Convert to amu*angstrom^2
                 if inertia[0] == 0.0:  # Linear rotor
                     inertia = np.sqrt(inertia[1]*inertia[2])
@@ -108,9 +102,7 @@ class QChem(object):
     def get_frequencies(self):
         freqs = []
         for line in reversed(self.log):
-            if 'SCF failed to converge' in line:
-                raise QChemError('SCF failed to converge in {}'.format(self.logfile))
-            elif 'Frequency' in line:
+            if 'Frequency' in line:
                 freqs.extend([float(f) for f in reversed(line.split()[1:])])
             elif 'VIBRATIONAL ANALYSIS' in line:
                 freqs.reverse()
@@ -120,9 +112,7 @@ class QChem(object):
 
     def get_zpe(self):
         for line in reversed(self.log):
-            if 'SCF failed to converge' in line:
-                raise QChemError('SCF failed to converge in {}'.format(self.logfile))
-            elif 'Zero point vibrational energy' in line:
+            if 'Zero point vibrational energy' in line:
                 return float(line.split()[-2]) / 627.5095  # Convert to Hartree
         else:
             raise QChemError('ZPE not found in {}'.format(self.logfile))
