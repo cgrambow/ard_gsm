@@ -312,7 +312,13 @@ class MolGraph(object):
         atom.connections = {}
         return atom
 
-    def add_connection(self, connection):
+    def add_connection(self, connection=None, atom1=None, atom2=None):
+        """
+        Either add a connection directly or first create one from two
+        atoms and then add it.
+        """
+        if connection is None:
+            connection = Connection(atom1, atom2)
         if connection.atom1 not in self.atoms or connection.atom2 not in self.atoms:
             raise Exception('Cannot add connection between atoms not in the graph')
         else:
