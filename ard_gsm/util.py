@@ -58,3 +58,21 @@ def read_xyz_file(path, with_energy=False):
             i += natoms + 2
 
     return xyzs
+
+
+def get_dist_vecs(coords):
+    """
+    Calculate and return the distance vectors between all combinations
+    of points given an array of Cartesian coordinates. The vectors are
+    returned as a 3D tensor in which each vector can be accessed as
+    d = tensor[:, point_idx1, point_idx2], where d is the vector that
+    points from point1 to point2.
+    """
+    coords = coords.reshape(np.size(coords) // 3, 3)
+    x = coords[:, 0]
+    y = coords[:, 1]
+    z = coords[:, 2]
+    dx = x[..., np.newaxis] - x[np.newaxis, ...]
+    dy = y[..., np.newaxis] - y[np.newaxis, ...]
+    dz = z[..., np.newaxis] - z[np.newaxis, ...]
+    return -np.array([dx, dy, dz])
