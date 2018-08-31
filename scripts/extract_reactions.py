@@ -12,7 +12,7 @@ import numpy as np
 
 from ard_gsm.qchem import QChem, QChemError
 from ard_gsm.mol import MolGraph
-from ard_gsm.reaction import group_reactions_by_products, group_reactions_by_connection_changes
+from ard_gsm.reaction import group_reactions_by_products, group_reactions_by_connection_changes, normal_mode_analysis
 from ard_gsm.util import iter_sub_dirs
 
 
@@ -66,7 +66,15 @@ def main():
                 continue
 
             ts_energy = qts.get_energy() + qts.get_zpe()
-            ts = MolGraph(energy=ts_energy)
+            ts_symbols, ts_coords = qts.get_geometry()
+            ts = MolGraph(symbols=ts_symbols, coords=ts_coords, energy=ts_energy)
+
+            if args.check_normal_mode:
+                ts.infer_connections()
+                normal_mode = qts.get_normal_modes()[0]  # First one corresponds to imaginary frequency
+                if not normal_mode_analysis(reactant, product, ts, normal_mode):
+                    print('Ignored {} because of failed normal mode analysis'.format(ts_file))
+                    continue
 
             reactions[num] = [reactant, ts, product]
 
@@ -144,6 +152,9 @@ def parse_args():
     parser.add_argument('--gdist', type=float, default=1.0,
                         help='Ignore TS files with Cartesian RMSD (Angstrom) between first and last geometries'
                              ' larger than this')
+    parser.add_argument('--check_normal_mode', action='store_true',
+                        help='Perform a normal mode analysis to identify if the TS structure is correct (make sure to'
+                             ' check the warnings in the normal_mode_analysis function before using this option')
     parser.add_argument('--group_by_connection_changes', action='store_true',
                         help='Use connection changes instead of product identities to distinguish reactions')
     parser.add_argument('--keep_isomorphic_reactions', action='store_true',
