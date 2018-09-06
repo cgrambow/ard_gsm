@@ -81,7 +81,7 @@ def main():
             if args.check_normal_mode:
                 ts.infer_connections()
                 normal_mode = qts.get_normal_modes()[0]  # First one corresponds to imaginary frequency
-                if not normal_mode_analysis(reactant, product, ts, normal_mode):
+                if not normal_mode_analysis(reactant, product, ts, normal_mode, soft_check=args.soft_check):
                     print('Ignored {} because of failed normal mode analysis'.format(ts_file))
                     continue
 
@@ -159,6 +159,9 @@ def parse_args():
     parser.add_argument('--check_normal_mode', action='store_true',
                         help='Perform a normal mode analysis to identify if the TS structure is correct (make sure to'
                              ' check the warnings in the normal_mode_analysis function before using this option')
+    parser.add_argument('--soft_check', action='store_true',
+                        help='If checking normal modes, only perform a soft check, i.e., only check that the largest'
+                             ' TS variation is the largest overall')
     parser.add_argument('--group_by_connection_changes', action='store_true',
                         help='Use connection changes instead of product identities to distinguish reactions')
     parser.add_argument('--keep_isomorphic_reactions', action='store_true',

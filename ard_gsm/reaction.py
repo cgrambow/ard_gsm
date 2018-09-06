@@ -67,7 +67,7 @@ def get_connection_changes(mg1, mg2):
     return break_connections, form_connections
 
 
-def normal_mode_analysis(reactant, product, ts, normal_mode):
+def normal_mode_analysis(reactant, product, ts, normal_mode, soft_check=False):
     """
     Check if the TS is correct by identifying which bonds change in the
     reaction and checking if the bond length contributions of those
@@ -75,7 +75,9 @@ def normal_mode_analysis(reactant, product, ts, normal_mode):
     imaginary frequency of the TS are larger than those of other bonds.
     Requires that connections have been inferred for reactant, product,
     and TS. The normal mode should be provided as an array of Cartesian
-    displacements.
+    displacements. If `soft_check` is True, only check that the largest
+    normal mode contribution corresponds to a bond change in the
+    reaction.
 
     Note: IRC and normal mode analysis are actually quite likely to
     disagree because it can be very difficult to tell where the exact
@@ -103,13 +105,18 @@ def normal_mode_analysis(reactant, product, ts, normal_mode):
     # `ts`, so just extract the indices.
     changed_inds = {(connection.atom1.idx, connection.atom2.idx) for connection in changed}
     changed_bond_variations = [bond_variations[idx1-1, idx2-1] for idx1, idx2 in changed_inds]  # Atom inds start at 1
+    max_variation = max(changed_bond_variations)
 
     for connection in ts.get_all_connections():
         idx1 = connection.atom1.idx
         idx2 = connection.atom2.idx
         if not (idx1, idx2) in changed_inds:
             bond_variation = bond_variations[idx1-1, idx2-1]
-            if any(bond_variation > v for v in changed_bond_variations):
-                return False
+            if soft_check:
+                if bond_variation > max_variation:
+                    return False
+            else:
+                if any(bond_variation > v for v in changed_bond_variations):
+                    return False
 
     return True
