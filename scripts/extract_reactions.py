@@ -69,6 +69,15 @@ def main():
             ts_symbols, ts_coords = qts.get_geometry()
             ts = MolGraph(symbols=ts_symbols, coords=ts_coords, energy=ts_energy)
 
+            # Negative barriers shouldn't occur because we're calculating them
+            # based on reactant/product wells, but check this just in case
+            if ts_energy - reactant_energy < 0.0:
+                print('Ignored {} because of negative barrier'.format(ts_file))
+                continue
+            elif ts_energy - product_energy < 0.0:
+                print('Ignored {} because of negative reverse barrier'.format(ts_file))
+                continue
+
             if args.check_normal_mode:
                 ts.infer_connections()
                 normal_mode = qts.get_normal_modes()[0]  # First one corresponds to imaginary frequency
@@ -88,8 +97,6 @@ def main():
         for group in reaction_groups:
             barriers = [(num, ts.energy - r.energy) for num, (r, ts, _) in group.iteritems()]
             extracted_num, barrier = min(barriers, key=lambda x: x[1])
-            if barrier < 0.0:
-                print('WARNING: Barrier for reaction {} in {} is negative!'.format(extracted_num, sub_dir_name))
 
             _, ts, product = group[extracted_num]
             product_smiles = product.perceive_smiles()
@@ -101,9 +108,6 @@ def main():
                 # them are the same as already extracted reactions in a different
                 # sub dir, but it's unlikely
                 reverse_barrier = (ts.energy - product.energy) * 627.5095
-                if reverse_barrier < 0.0:
-                    print('WARNING: Barrier for reverse of reaction'
-                          ' {} in {} is negative!'.format(extracted_num, sub_dir_name))
                 out_file.write('{}   {}   {}\n'.format(product_smiles, reactant_smiles, reverse_barrier))
 
     out_file.close()
