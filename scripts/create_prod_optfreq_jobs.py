@@ -28,10 +28,15 @@ def main():
 
             if is_successful(gsm_log):
                 # Optimize van-der-Waals wells instead of separated products
-                xyzs = read_xyz_file(string_file)
+                # Also check if product optimization during GSM failed
+                xyzs = read_xyz_file(string_file, with_energy=True)
+                last_energy = xyzs[-1][-1]
+                second_to_last_energy = xyzs[-2][-1]
+                if last_energy > second_to_last_energy:  # Something went wrong in product optimization
+                    continue
                 path = os.path.join(out_dir, 'prod_optfreq{:04}.in'.format(num))
                 q = QChem(config_file=args.config)
-                q.make_input_from_coords(path, *xyzs[-1])
+                q.make_input_from_coords(path, *xyzs[-1][:-1])
 
 
 def is_successful(gsm_log):
