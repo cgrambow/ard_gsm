@@ -43,6 +43,13 @@ def smiles_to_rdkit(smi, gen_3d=True, nconf=100):
     return mol
 
 
+class SanitizationError(Exception):
+    """
+    Exception class to handle errors during SMILES perception.
+    """
+    pass
+
+
 class MolData(object):
     """
     Class to parse molecular data from the QM9 dataset.
@@ -194,6 +201,9 @@ class Atom(object):
             frozen=self.frozen,
         )
 
+    def get_atomicnum(self):
+        return _rdkit_periodic_table.GetAtomicNumber(self.symbol)
+
     def get_cov_rad(self):
         return _rdkit_periodic_table.GetRcovalent(self.symbol)
 
@@ -279,6 +289,36 @@ class MolGraph(object):
         for atom in self.atoms:
             yield atom
 
+    def get_formula(self):
+        """
+        Return the molecular formula corresponding to the graph.
+        """
+        # Count the numbers of each element
+        elements = {}
+        for atom in self:
+            symbol = atom.symbol
+            elements[symbol] = elements.get(symbol, 0) + 1
+
+        # Carbon and hydrogen come first if carbon is present, other
+        # atoms come in alphabetical order (also hydrogen if there is no
+        # carbon)
+        formula = ''
+        if 'C' in elements.keys():
+            count = elements['C']
+            formula += 'C{:d}'.format(count) if count > 1 else 'C'
+            del elements['C']
+            if 'H' in elements.keys():
+                count = elements['H']
+                formula += 'H{:d}'.format(count) if count > 1 else 'H'
+                del elements['H']
+        keys = elements.keys()
+        keys.sort()
+        for key in keys:
+            count = elements[key]
+            formula += '{}{:d}'.format(key, count) if count > 1 else key
+
+        return formula
+
     def to_rmg_mol(self):
         import rmgpy.molecule.molecule as rmg_molecule
 
@@ -294,18 +334,67 @@ class MolGraph(object):
 
     def perceive_smiles(self):
         """
-        Using the geometry, perceive the corresponding SMILES
-        with bond orders using Open Babel.
+        Using the geometry, perceive the corresponding SMILES with bond
+        orders using Open Babel and RDKit. Note that while Open Babel
+        and RDKit will generate SMILES that are canonical within their
+        respective packages, the SMILES generated using this function
+        are not canonical because either package might be used.
+
+        This method requires Open Babel version >=2.4.1
         """
         import pybel
 
+        # Get dict of atomic numbers for later comparison.
+        atoms_in_mol_true = {}
+        for atom in self:
+            anum = atom.get_atomicnum()
+            atoms_in_mol_true[anum] = atoms_in_mol_true.get(anum, 0) + 1
+
+        # There seems to be no particularly simple way in RDKit to read
+        # in 3D structures, so use Open Babel for this part. RMG doesn't
+        # recognize some single bonds, so we can't use that.
         symbols = [atom.symbol for atom in self]
         coords = np.vstack([atom.coords for atom in self])
         cblock = ['{0}  {1[0]: .10f}  {1[1]: .10f}  {1[2]: .10f}'.format(s, c) for s, c in zip(symbols, coords)]
         xyz = str(len(symbols)) + '\n\n' + '\n'.join(cblock)
         mol = pybel.readstring('xyz', xyz)
+        mol.addh()
 
-        return mol.write('can').strip()
+        # Open Babel will often make single bonds and generate Smiles
+        # that have multiple radicals, which would probably correspond
+        # to double bonds. To get around this, convert to InChi (which
+        # does not consider bond orders) and then convert to Smiles.
+        inchi = mol.write('inchi', opt={'F': None}).strip()  # Add fixed H layer
+        mol_sanitized = pybel.readstring('inchi', inchi)
+        mol_sanitized.addh()
+        smi = mol_sanitized.write('can').strip()
+
+        # Unfortunately, sometimes Open Babel will add extra hydrogens
+        # during the Smiles conversion for no apparent reason, so we
+        # switch to RDKit when this happens.
+        atoms_in_mol_sani = {}
+        for atom in mol_sanitized:
+            atoms_in_mol_sani[atom.atomicnum] = atoms_in_mol_sani.get(atom.atomicnum, 0) + 1
+        if atoms_in_mol_sani != atoms_in_mol_true:
+            mol_sanitized = Chem.MolFromInchi(inchi)
+
+            # RDKit doesn't like some hypervalent atoms
+            if mol_sanitized is None:
+                raise SanitizationError('Could not convert \n{}\nto Smiles. Wrong Smiles: {}'.format(xyz, smi))
+
+            # RDKit also adds unnecessary hydrogens in some cases. If
+            # this happens, give up and return an error.
+            mol_sanitized = Chem.AddHs(mol_sanitized)
+            smi = Chem.MolToSmiles(mol_sanitized)
+            atoms_in_mol_sani = {}
+            for atom in mol_sanitized.GetAtoms():
+                atoms_in_mol_sani[atom.GetAtomicNum()] = atoms_in_mol_sani.get(atom.GetAtomicNum(), 0) + 1
+            if atoms_in_mol_sani != atoms_in_mol_true:
+                raise SanitizationError('Could not convert \n{}\nto Smiles. Wrong Smiles: {}'.format(xyz, smi))
+
+        # If everything succeeded up to here, we hopefully have a
+        # sensible Smiles string.
+        return smi
 
     def add_atom(self, atom):
         self.atoms.append(atom)

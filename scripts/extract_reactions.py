@@ -11,7 +11,7 @@ import re
 import numpy as np
 
 from ard_gsm.qchem import QChem, QChemError
-from ard_gsm.mol import MolGraph
+from ard_gsm.mol import MolGraph, SanitizationError
 from ard_gsm.reaction import group_reactions_by_products, group_reactions_by_connection_changes, normal_mode_analysis
 from ard_gsm.util import iter_sub_dirs
 
@@ -36,7 +36,11 @@ def main():
         reactant_symbols, reactant_coords = qr.get_geometry()
         reactant = MolGraph(symbols=reactant_symbols, coords=reactant_coords, energy=reactant_energy)
         reactant.infer_connections()  # Need this for reaction grouping later
-        reactant_smiles = reactant.perceive_smiles()
+        try:
+            reactant_smiles = reactant.perceive_smiles()
+        except SanitizationError:
+            print('Error during Smiles conversion in {}'.format(reactant_file))
+            raise
 
         reactions = {}
         for ts_file in glob.iglob(os.path.join(ts_sub_dir, 'ts_optfreq*.out')):
@@ -96,19 +100,28 @@ def main():
         # Extract the lowest barrier reaction from each group
         for group in reaction_groups:
             barriers = [(num, ts.energy - r.energy) for num, (r, ts, _) in group.iteritems()]
-            extracted_num, barrier = min(barriers, key=lambda x: x[1])
+            barriers.sort(key=lambda x: x[1])
 
-            _, ts, product = group[extracted_num]
-            product_smiles = product.perceive_smiles()
-            barrier *= 627.5095  # Hartree to kcal/mol
-            out_file.write('{}   {}   {}\n'.format(reactant_smiles, product_smiles, barrier))
+            for extracted_num, barrier in barriers:
+                _, ts, product = group[extracted_num]
+                try:
+                    product_smiles = product.perceive_smiles()
+                except SanitizationError:
+                    print('Ignored number {} in {} because Smiles perception failed'.format(extracted_num, ts_sub_dir))
+                    continue
 
-            if args.include_reverse:
-                # For reverse reactions, it's technically possible that some of
-                # them are the same as already extracted reactions in a different
-                # sub dir, but it's unlikely
-                reverse_barrier = (ts.energy - product.energy) * 627.5095
-                out_file.write('{}   {}   {}\n'.format(product_smiles, reactant_smiles, reverse_barrier))
+                barrier *= 627.5095  # Hartree to kcal/mol
+                out_file.write('{}   {}   {}\n'.format(reactant_smiles, product_smiles, barrier))
+
+                if args.include_reverse:
+                    # For reverse reactions, it's technically possible that some of
+                    # them are the same as already extracted reactions in a different
+                    # sub dir, but it's unlikely
+                    reverse_barrier = (ts.energy - product.energy) * 627.5095
+                    out_file.write('{}   {}   {}\n'.format(product_smiles, reactant_smiles, reverse_barrier))
+
+                # If we get to this point, we have written a reaction, so break
+                break
 
     out_file.close()
 
