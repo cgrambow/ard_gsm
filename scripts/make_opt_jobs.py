@@ -27,6 +27,8 @@ def main():
 
     if args.max_heavy > 0:
         data = [mol_data for mol_data in data if sum(1 for s in mol_data.elements if s != 'H') <= args.max_heavy]
+    if args.min_heavy > 0:
+        data = [mol_data for mol_data in data if sum(1 for s in mol_data.elements if s != 'H') >= args.min_heavy]
     if args.random:
         random.shuffle(data)
     if args.num > 0:
@@ -60,7 +62,8 @@ def parse_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('mol_data', metavar='FILE', help='Path to pickled and zipped list of MolData objects')
     parser.add_argument('out_dir', metavar='DIR', help='Path to output directory')
-    parser.add_argument('--max_heavy', type=int, default=-1, metavar='H', help='Maximum number of heavy atoms')
+    parser.add_argument('--max_heavy', type=int, default=-1, metavar='MAXH', help='Maximum number of heavy atoms')
+    parser.add_argument('--min_heavy', type=int, default=-1, metavar='MINH', help='Minimum number of heavy atoms')
     parser.add_argument('--num', type=int, default=-1, metavar='N', help='Number of molecules to choose from mol_data')
     parser.add_argument('--not_random', action='store_false', dest='random',
                         help='Select molecules in order instead of randomly')
