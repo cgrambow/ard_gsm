@@ -13,16 +13,22 @@ import numpy as np
 from ard_gsm.qchem import QChem, QChemError
 from ard_gsm.mol import MolGraph, SanitizationError
 from ard_gsm.reaction import group_reactions_by_products, group_reactions_by_connection_changes, normal_mode_analysis
-from ard_gsm.util import iter_sub_dirs
+from ard_gsm.util import iter_sub_dirs, write_xyz_file
 
 
 def main():
     args = parse_args()
     num_regex = re.compile(r'\d+')
     out_file = open(args.out_file, 'w')
+    if args.xyz_dir is not None:
+        if not os.path.exists(args.xyz_dir):
+            os.makedirs(args.xyz_dir)
 
+    rxn_num = 0
     for ts_sub_dir in iter_sub_dirs(args.ts_dir):
         sub_dir_name = os.path.basename(ts_sub_dir)
+        if not sub_dir_name.startswith('gsm'):
+            continue
         print('Extracting from {}...'.format(sub_dir_name))
         reactant_num = int(num_regex.search(sub_dir_name).group(0))
         reactant_file = os.path.join(args.reac_dir, 'molopt{}.log'.format(reactant_num))
@@ -103,7 +109,8 @@ def main():
             barriers.sort(key=lambda x: x[1])
 
             for extracted_num, barrier in barriers:
-                _, ts, product = group[extracted_num]
+                rxn = group[extracted_num]
+                _, ts, product = rxn
                 try:
                     product_smiles = product.perceive_smiles()
                 except SanitizationError:
@@ -113,6 +120,15 @@ def main():
                 barrier *= 627.5095  # Hartree to kcal/mol
                 out_file.write('{}   {}   {}\n'.format(reactant_smiles, product_smiles, barrier))
 
+                if args.xyz_dir is not None:
+                    symbols = (mol.get_symbols() for mol in rxn)
+                    coords = (mol.get_coords() for mol in rxn)
+                    comments = [reactant_smiles, '', product_smiles]
+                    path = os.path.join(args.xyz_dir, 'rxn{:06}.xyz'.format(rxn_num))
+                    write_xyz_file(path, symbols, coords, comments=comments)
+
+                rxn_num += 1
+
                 if args.include_reverse:
                     # For reverse reactions, it's technically possible that some of
                     # them are the same as already extracted reactions in a different
@@ -120,9 +136,19 @@ def main():
                     reverse_barrier = (ts.energy - product.energy) * 627.5095
                     out_file.write('{}   {}   {}\n'.format(product_smiles, reactant_smiles, reverse_barrier))
 
+                    if args.xyz_dir is not None:
+                        symbols = (mol.get_symbols() for mol in rxn[::-1])
+                        coords = (mol.get_coords() for mol in rxn[::-1])
+                        comments = [product_smiles, '', reactant_smiles]
+                        path = os.path.join(args.xyz_dir, 'rxn{:06}.xyz'.format(rxn_num))
+                        write_xyz_file(path, symbols, coords, comments=comments)
+
+                    rxn_num += 1
+
                 # If we get to this point, we have written a reaction, so break
                 break
 
+    print('Wrote {} reactions to {}.'.format(rxn_num, args.out_file))
     out_file.close()
 
 
@@ -163,6 +189,7 @@ def parse_args():
     parser.add_argument('prod_dir', help='Path to directory containing optimized product structures')
     parser.add_argument('ts_dir', help='Path to directory containing optimized TS structures')
     parser.add_argument('out_file', help='Path to output file')
+    parser.add_argument('--xyz_dir', help='If specified, write the geometries for each reaction to this directory')
     parser.add_argument('--include_reverse', action='store_true', help='Also extract reverse reactions')
     parser.add_argument('--edist', type=float, default=5.0,
                         help='Ignore TS files with energy differences (kcal/mol) larger than this')
