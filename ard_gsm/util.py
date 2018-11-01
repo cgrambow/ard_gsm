@@ -4,6 +4,7 @@
 import cPickle as pickle
 import gzip
 import os
+from six.moves import xrange
 
 import numpy as np
 
@@ -34,6 +35,12 @@ def iter_sub_dirs(root):
 
 
 def read_xyz_file(path, with_energy=False):
+    """
+    Read an XYZ file, potentially containing multiple geometries. If
+    desired, the comment line will be parsed as a float assuming that it
+    contains the energy. Return a list of tuples each containing atomic
+    symbols, coordinates, and energy (only if desired).
+    """
     with open(path) as f:
         contents = [line.strip() for line in f]
 
@@ -58,6 +65,23 @@ def read_xyz_file(path, with_energy=False):
             i += natoms + 2
 
     return xyzs
+
+
+def write_xyz_file(path, symbols_list, coords_list, comments=None):
+    """
+    Write several geometries to an XYZ file. Each argument should be an
+    iterable containing all of the structures to be written to the file.
+    """
+    if comments is None:
+        # Make generator yielding empty strings
+        comments = ('' for _ in xrange(len(symbols_list)))
+
+    with open(path, 'w') as f:
+        for symbols, coords, comment in zip(symbols_list, coords_list, comments):
+            f.write(str(len(symbols)) + '\n')  # Number of atoms
+            f.write(comment + '\n')
+            for s, c in zip(symbols, coords):
+                f.write('{0}  {1[0]: .10f}  {1[1]: .10f}  {1[2]: .10f}\n'.format(s, c))
 
 
 def get_dist_vecs(coords):
