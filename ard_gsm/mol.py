@@ -332,6 +332,29 @@ class MolGraph(object):
 
         return rmg_mol
 
+    def to_rdkit_mol(self):
+        """
+        Convert the graph to an RDKit molecule with atom map numbers set
+        by the indices of the atoms.
+        """
+        assert all(atom.idx is not None for atom in self)
+
+        rd_mol = Chem.rdchem.EditableMol(Chem.rdchem.Mol())
+        for atom in self:
+            rd_atom = Chem.rdchem.Atom(atom.symbol)
+            rd_atom.SetAtomMapNum(atom.idx)
+            rd_mol.AddAtom(rd_atom)
+
+        for atom1 in self:
+            for atom2, connection in atom1.connections.iteritems():
+                idx1 = self.atoms.index(atom1)  # This is the index in the atoms list
+                idx2 = self.atoms.index(atom2)
+                if idx1 < idx2:
+                    rd_mol.AddBond(idx1, idx2, Chem.rdchem.BondType.SINGLE)
+
+        rd_mol = rd_mol.GetMol()
+        return rd_mol
+
     def perceive_smiles(self):
         """
         Using the geometry, perceive the corresponding SMILES with bond
