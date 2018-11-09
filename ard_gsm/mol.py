@@ -4,6 +4,7 @@
 import os
 
 import numpy as np
+import pybel
 from rdkit import Chem
 from rdkit.Chem import AllChem, GetPeriodicTable
 
@@ -355,6 +356,23 @@ class MolGraph(object):
         rd_mol = rd_mol.GetMol()
         return rd_mol
 
+    def to_pybel_mol(self, from_coords=True):
+        """
+        Convert the graph to a Pybel molecule. Currently only supports
+        creating the molecule from 3D coordinates.
+        """
+        if from_coords:
+            for atom in self:
+                assert len(atom.coords) != 0
+            symbols, coords = self.get_geometry()
+            cblock = ['{0}  {1[0]: .10f}  {1[1]: .10f}  {1[2]: .10f}'.format(s, c) for s, c in zip(symbols, coords)]
+            xyz = str(len(symbols)) + '\n\n' + '\n'.join(cblock)
+            mol = pybel.readstring('xyz', xyz)
+            mol.addh()
+            return mol
+        else:
+            raise NotImplementedError('Can only create Pybel molecules from 3D structure')
+
     def perceive_smiles(self):
         """
         Using the geometry, perceive the corresponding SMILES with bond
@@ -365,7 +383,6 @@ class MolGraph(object):
 
         This method requires Open Babel version >=2.4.1
         """
-        import pybel
 
         # Get dict of atomic numbers for later comparison.
         atoms_in_mol_true = {}
@@ -579,6 +596,16 @@ class MolGraph(object):
         atoms = self.atoms[:]
         atoms.sort(key=lambda a: a.idx)
         return [atom.symbol for atom in atoms]
+
+    def get_geometry(self):
+        """
+        Get symbols and coordinates in the order specified by the atom
+        indices.
+        """
+        assert all(atom.idx is not None for atom in self)
+        atoms = self.atoms[:]
+        atoms.sort(key=lambda a: a.idx)
+        return [atom.symbol for atom in atoms], np.array([atom.coords for atom in atoms])
 
     def infer_connections(self):
         """
