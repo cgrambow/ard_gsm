@@ -362,24 +362,33 @@ class MolGraph(object):
         creating the molecule from 3D coordinates.
         """
         if from_coords:
-            for atom in self:
-                assert len(atom.coords) != 0
-            symbols, coords = self.get_geometry()
-            cblock = ['{0}  {1[0]: .10f}  {1[1]: .10f}  {1[2]: .10f}'.format(s, c) for s, c in zip(symbols, coords)]
-            xyz = str(len(symbols)) + '\n\n' + '\n'.join(cblock)
+            xyz = self.to_xyz()
             mol = pybel.readstring('xyz', xyz)
-            mol.addh()
             return mol
         else:
             raise NotImplementedError('Can only create Pybel molecules from 3D structure')
 
+    def to_xyz(self, comment=''):
+        """
+        Convert the graph to an XYZ-format string. Optionally, add
+        comment on the second line.
+        """
+        for atom in self:
+            assert len(atom.coords) != 0
+        symbols, coords = self.get_geometry()
+        cblock = ['{0}  {1[0]: .10f}  {1[1]: .10f}  {1[2]: .10f}'.format(s, c) for s, c in zip(symbols, coords)]
+        return str(len(symbols)) + '\n' + comment + '\n' + '\n'.join(cblock)
+
     def perceive_smiles(self):
         """
         Using the geometry, perceive the corresponding SMILES with bond
-        orders using Open Babel and RDKit. Note that while Open Babel
-        and RDKit will generate SMILES that are canonical within their
-        respective packages, the SMILES generated using this function
-        are not canonical because either package might be used.
+        orders using Open Babel and RDKit. In order to create a sensible
+        SMILES, first infer the connectivity from the 3D coordinates
+        using Open Babel, then convert to InChI to saturate unphysical
+        multi-radical structures, then convert to RDKit and match the
+        atoms to the ones in self in order to return a SMILES with atom
+        mapping corresponding to the order given by the values of
+        atom.idx for all atoms in self.
 
         This method requires Open Babel version >=2.4.1
         """
@@ -393,48 +402,55 @@ class MolGraph(object):
         # There seems to be no particularly simple way in RDKit to read
         # in 3D structures, so use Open Babel for this part. RMG doesn't
         # recognize some single bonds, so we can't use that.
-        symbols = [atom.symbol for atom in self]
-        coords = np.vstack([atom.coords for atom in self])
-        cblock = ['{0}  {1[0]: .10f}  {1[1]: .10f}  {1[2]: .10f}'.format(s, c) for s, c in zip(symbols, coords)]
-        xyz = str(len(symbols)) + '\n\n' + '\n'.join(cblock)
-        mol = pybel.readstring('xyz', xyz)
-        mol.addh()
+        # We've probably called to_pybel_mol at some previous time to set
+        # connections, but it shouldn't be too expensive to do it again.
+        pybel_mol = self.to_pybel_mol()
 
         # Open Babel will often make single bonds and generate Smiles
         # that have multiple radicals, which would probably correspond
-        # to double bonds. To get around this, convert to InChi (which
+        # to double bonds. To get around this, convert to InChI (which
         # does not consider bond orders) and then convert to Smiles.
-        inchi = mol.write('inchi', opt={'F': None}).strip()  # Add fixed H layer
-        mol_sanitized = pybel.readstring('inchi', inchi)
-        mol_sanitized.addh()
-        smi = mol_sanitized.write('can').strip()
+        inchi = pybel_mol.write('inchi', opt={'F': None}).strip()  # Add fixed H layer
 
-        # Unfortunately, sometimes Open Babel will add extra hydrogens
-        # during the Smiles conversion for no apparent reason, so we
-        # switch to RDKit when this happens.
+        # Use RDKit to convert back to Smiles
+        mol_sanitized = Chem.MolFromInchi(inchi)
+
+        # RDKit doesn't like some hypervalent atoms
+        if mol_sanitized is None:
+            raise SanitizationError(
+                'Could not convert \n{}\nto Smiles. Unsanitized Smiles: {}'.format(self.to_xyz(),
+                                                                                   pybel_mol.write('smi').strip())
+            )
+
+        # RDKit adds unnecessary hydrogens in some cases. If
+        # this happens, give up and return an error.
+        mol_sanitized = Chem.AddHs(mol_sanitized)
         atoms_in_mol_sani = {}
-        for atom in mol_sanitized:
-            atoms_in_mol_sani[atom.atomicnum] = atoms_in_mol_sani.get(atom.atomicnum, 0) + 1
+        for atom in mol_sanitized.GetAtoms():
+            atoms_in_mol_sani[atom.GetAtomicNum()] = atoms_in_mol_sani.get(atom.GetAtomicNum(), 0) + 1
         if atoms_in_mol_sani != atoms_in_mol_true:
-            mol_sanitized = Chem.MolFromInchi(inchi)
+            raise SanitizationError(
+                'Could not convert \n{}\nto Smiles. Wrong Smiles: {}'.format(self.to_xyz(),
+                                                                             Chem.MolToSmiles(mol_sanitized))
+            )
 
-            # RDKit doesn't like some hypervalent atoms
-            if mol_sanitized is None:
-                raise SanitizationError('Could not convert \n{}\nto Smiles. Wrong Smiles: {}'.format(xyz, smi))
-
-            # RDKit also adds unnecessary hydrogens in some cases. If
-            # this happens, give up and return an error.
-            mol_sanitized = Chem.AddHs(mol_sanitized)
-            smi = Chem.MolToSmiles(mol_sanitized)
-            atoms_in_mol_sani = {}
-            for atom in mol_sanitized.GetAtoms():
-                atoms_in_mol_sani[atom.GetAtomicNum()] = atoms_in_mol_sani.get(atom.GetAtomicNum(), 0) + 1
-            if atoms_in_mol_sani != atoms_in_mol_true:
-                raise SanitizationError('Could not convert \n{}\nto Smiles. Wrong Smiles: {}'.format(xyz, smi))
+        # Because we went through InChI, we lost atom mapping
+        # information. Restore it by matching the original molecule.
+        # There should only be one unique map.
+        mol_with_map = self.to_rdkit_mol()  # This only has single bonds
+        mol_sani_sb = Chem.Mol(mol_sanitized)  # Make copy with single bonds only
+        for bond in mol_sani_sb.GetBonds():
+            bond.SetBondType(Chem.rdchem.BondType.SINGLE)
+        match = mol_sani_sb.GetSubstructMatch(mol_with_map)  # Isomorphism mapping
+        assert mol_with_map.GetNumAtoms() == len(match)  # Make sure we match all atoms
+        for atom in mol_with_map.GetAtoms():
+            idx = match[atom.GetIdx()]
+            map_num = atom.GetAtomMapNum()
+            mol_sanitized.GetAtomWithIdx(idx).SetAtomMapNum(map_num)
 
         # If everything succeeded up to here, we hopefully have a
-        # sensible Smiles string.
-        return smi
+        # sensible Smiles string with atom mappings for all atoms.
+        return Chem.MolToSmiles(mol_sanitized)
 
     def add_atom(self, atom):
         self.atoms.append(atom)
