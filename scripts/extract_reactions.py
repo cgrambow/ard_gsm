@@ -43,7 +43,7 @@ def main():
         reactant = MolGraph(symbols=reactant_symbols, coords=reactant_coords, energy=reactant_energy)
         reactant.infer_connections()  # Need this for reaction grouping later
         try:
-            reactant_smiles = reactant.perceive_smiles()
+            reactant_smiles = reactant.perceive_smiles(atommap=args.atommap)
         except SanitizationError:
             print('Error during Smiles conversion in {}'.format(reactant_file))
             raise
@@ -112,7 +112,7 @@ def main():
                 rxn = group[extracted_num]
                 _, ts, product = rxn
                 try:
-                    product_smiles = product.perceive_smiles()
+                    product_smiles = product.perceive_smiles(atommap=args.atommap)
                 except SanitizationError:
                     print('Ignored number {} in {} because Smiles perception failed'.format(extracted_num, ts_sub_dir))
                     continue
@@ -206,6 +206,8 @@ def parse_args():
                         help='Use connection changes instead of product identities to distinguish reactions')
     parser.add_argument('--keep_isomorphic_reactions', action='store_true',
                         help='Consider reactions where the product is isomorphic with the reactant')
+    parser.add_argument('--no_atommap', action='store_false', dest='atommap',
+                        help='Do not include atom mapping in parsed SMILES')
     return parser.parse_args()
 
 

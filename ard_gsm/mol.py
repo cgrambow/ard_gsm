@@ -379,7 +379,7 @@ class MolGraph(object):
         cblock = ['{0}  {1[0]: .10f}  {1[1]: .10f}  {1[2]: .10f}'.format(s, c) for s, c in zip(symbols, coords)]
         return str(len(symbols)) + '\n' + comment + '\n' + '\n'.join(cblock)
 
-    def perceive_smiles(self):
+    def perceive_smiles(self, atommap=True):
         """
         Using the geometry, perceive the corresponding SMILES with bond
         orders using Open Babel and RDKit. In order to create a sensible
@@ -433,6 +433,9 @@ class MolGraph(object):
                 'Could not convert \n{}\nto Smiles. Wrong Smiles: {}'.format(self.to_xyz(),
                                                                              Chem.MolToSmiles(mol_sanitized))
             )
+
+        if not atommap:
+            return Chem.MolToSmiles(mol_sanitized)
 
         # Because we went through InChI, we lost atom mapping
         # information. Restore it by matching the original molecule.
