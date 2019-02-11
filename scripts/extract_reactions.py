@@ -8,12 +8,9 @@ import glob
 import os
 import re
 
-import numpy as np
-
-from ard_gsm.qchem import QChem, QChemError
-from ard_gsm.mol import MolGraph, SanitizationError
-from ard_gsm.reaction import group_reactions_by_products, group_reactions_by_connection_changes, normal_mode_analysis
-from ard_gsm.util import iter_sub_dirs, write_xyz_file
+from ard_gsm.mol import SanitizationError
+from ard_gsm.extract import qchem2molgraph, parse_reaction, remove_duplicates, rxn2xyzfile
+from ard_gsm.util import iter_sub_dirs
 
 
 def main():
@@ -32,16 +29,11 @@ def main():
         print('Extracting from {}...'.format(sub_dir_name))
         reactant_num = int(num_regex.search(sub_dir_name).group(0))
         reactant_file = os.path.join(args.reac_dir, 'molopt{}.log'.format(reactant_num))
-        qr = QChem(logfile=reactant_file)
 
-        # Check reactant frequencies
-        if not valid_job(qr, freq_only=True, print_msg=False):
+        reactant = qchem2molgraph(reactant_file, freq_only=True, print_msg=False)
+        if reactant is None:
             raise Exception('Negative frequency for reactant in {}!'.format(reactant_file))
 
-        reactant_energy = qr.get_energy() + qr.get_zpe()  # With ZPE
-        reactant_symbols, reactant_coords = qr.get_geometry()
-        reactant = MolGraph(symbols=reactant_symbols, coords=reactant_coords, energy=reactant_energy)
-        reactant.infer_connections()  # Need this for reaction grouping later
         try:
             reactant_smiles = reactant.perceive_smiles(atommap=args.atommap)
         except SanitizationError:
@@ -52,135 +44,50 @@ def main():
         for ts_file in glob.iglob(os.path.join(ts_sub_dir, 'ts_optfreq*.out')):
             num = int(num_regex.search(os.path.basename(ts_file)).group(0))
             prod_file = os.path.join(args.prod_dir, sub_dir_name, 'prod_optfreq{:04}.out'.format(num))
-            qp = QChem(logfile=prod_file)
 
-            # Shouldn't have to check freqs, but do it just in case
-            if not valid_job(qp, freq_only=True, print_msg=False):
-                raise Exception('Negative frequency for product in {}!'.format(prod_file))
+            rxn = parse_reaction(
+                reactant,
+                prod_file,
+                ts_file,
+                keep_isomorphic=args.keep_isomorphic_reactions,
+                edist_max=args.edist,
+                gdist_max=args.gdist,
+                normal_mode_check=args.check_normal_mode,
+                soft_check=args.soft_check
+            )
+            if rxn is not None:
+                reactions[num] = rxn
 
-            product_energy = qp.get_energy() + qp.get_zpe()
-            product_symbols, product_coords = qp.get_geometry()
-            product = MolGraph(symbols=product_symbols, coords=product_coords, energy=product_energy)
-            product.infer_connections()
+        reactions, product_smiles_dict = remove_duplicates(
+            reactions,
+            group_by_connection_changes=args.group_by_connection_changes,
+            atommap=args.atommap
+        )
 
-            if not args.keep_isomorphic_reactions and reactant.is_isomorphic(product):
-                print('Ignored {} because product is isomorphic with reactant'.format(prod_file))
-                continue
+        for num, rxn in reactions.iteritems():
+            reactant, ts, product = rxn
+            product_smiles = product_smiles_dict[num]
 
-            try:
-                qts = QChem(logfile=ts_file)
-            except QChemError as e:
-                print(e)
-                continue
-            if not valid_job(qts, args.edist, args.gdist, ts=True):
-                continue
+            barrier = (ts.energy - reactant.energy) * 627.5095  # Hartree to kcal/mol
+            out_file.write('{}   {}   {}\n'.format(reactant_smiles, product_smiles, barrier))
+            if args.xyz_dir is not None:
+                path = os.path.join(args.xyz_dir, 'rxn{:06}.xyz'.format(rxn_num))
+                rxn2xyzfile(rxn, path, reactant_smiles, product_smiles)
+            rxn_num += 1
 
-            ts_energy = qts.get_energy() + qts.get_zpe()
-            ts_symbols, ts_coords = qts.get_geometry()
-            ts = MolGraph(symbols=ts_symbols, coords=ts_coords, energy=ts_energy)
-
-            # Negative barriers shouldn't occur because we're calculating them
-            # based on reactant/product wells, but check this just in case
-            if ts_energy - reactant_energy < 0.0:
-                print('Ignored {} because of negative barrier'.format(ts_file))
-                continue
-            elif ts_energy - product_energy < 0.0:
-                print('Ignored {} because of negative reverse barrier'.format(ts_file))
-                continue
-
-            if args.check_normal_mode:
-                ts.infer_connections()
-                normal_mode = qts.get_normal_modes()[0]  # First one corresponds to imaginary frequency
-                if not normal_mode_analysis(reactant, product, ts, normal_mode, soft_check=args.soft_check):
-                    print('Ignored {} because of failed normal mode analysis'.format(ts_file))
-                    continue
-
-            reactions[num] = [reactant, ts, product]
-
-        # Group duplicate reactions
-        if args.group_by_connection_changes:
-            reaction_groups = group_reactions_by_connection_changes(reactions)
-        else:
-            reaction_groups = group_reactions_by_products(reactions)
-
-        # Extract the lowest barrier reaction from each group
-        for group in reaction_groups:
-            barriers = [(num, ts.energy - r.energy) for num, (r, ts, _) in group.iteritems()]
-            barriers.sort(key=lambda x: x[1])
-
-            for extracted_num, barrier in barriers:
-                rxn = group[extracted_num]
-                _, ts, product = rxn
-                try:
-                    product_smiles = product.perceive_smiles(atommap=args.atommap)
-                except SanitizationError:
-                    print('Ignored number {} in {} because Smiles perception failed'.format(extracted_num, ts_sub_dir))
-                    continue
-
-                barrier *= 627.5095  # Hartree to kcal/mol
-                out_file.write('{}   {}   {}\n'.format(reactant_smiles, product_smiles, barrier))
-
+            if args.include_reverse:
+                # For reverse reactions, it's technically possible that some of
+                # them are the same as already extracted reactions in a different
+                # sub dir, but it's unlikely
+                reverse_barrier = (ts.energy - product.energy) * 627.5095
+                out_file.write('{}   {}   {}\n'.format(product_smiles, reactant_smiles, reverse_barrier))
                 if args.xyz_dir is not None:
-                    symbols = (mol.get_symbols() for mol in rxn)
-                    coords = (mol.get_coords() for mol in rxn)
-                    comments = [reactant_smiles, '', product_smiles]
                     path = os.path.join(args.xyz_dir, 'rxn{:06}.xyz'.format(rxn_num))
-                    write_xyz_file(path, symbols, coords, comments=comments)
-
+                    rxn2xyzfile(rxn[::-1], path, product_smiles, reactant_smiles)
                 rxn_num += 1
-
-                if args.include_reverse:
-                    # For reverse reactions, it's technically possible that some of
-                    # them are the same as already extracted reactions in a different
-                    # sub dir, but it's unlikely
-                    reverse_barrier = (ts.energy - product.energy) * 627.5095
-                    out_file.write('{}   {}   {}\n'.format(product_smiles, reactant_smiles, reverse_barrier))
-
-                    if args.xyz_dir is not None:
-                        symbols = (mol.get_symbols() for mol in rxn[::-1])
-                        coords = (mol.get_coords() for mol in rxn[::-1])
-                        comments = [product_smiles, '', reactant_smiles]
-                        path = os.path.join(args.xyz_dir, 'rxn{:06}.xyz'.format(rxn_num))
-                        write_xyz_file(path, symbols, coords, comments=comments)
-
-                    rxn_num += 1
-
-                # If we get to this point, we have written a reaction, so break
-                break
 
     print('Wrote {} reactions to {}.'.format(rxn_num, args.out_file))
     out_file.close()
-
-
-def valid_job(q, edist_max=None, gdist_max=None, ts=False, freq_only=False, print_msg=True):
-    freqs = q.get_frequencies()
-    nnegfreq = sum(1 for freq in freqs if freq < 0.0)
-
-    if (ts and nnegfreq != 1) or (not ts and nnegfreq != 0):
-        if print_msg:
-            print('Ignored {} because of {} negative frequencies'.format(q.logfile, nnegfreq))
-        return False
-
-    if freq_only:
-        return True
-
-    assert edist_max is not None and gdist_max is not None
-
-    edist = abs(q.get_energy() - q.get_energy(first=True)) * 627.5095
-    geo = q.get_geometry()[1]
-    gdiff = geo.flatten() - q.get_geometry(first=True)[1].flatten()
-    gdist = np.sqrt(np.dot(gdiff, gdiff) / len(geo))
-
-    if edist > edist_max:
-        if print_msg:
-            print('Ignored {} because of large energy change of {:.2f} kcal/mol'.format(q.logfile, edist))
-        return False
-    if gdist > gdist_max:
-        if print_msg:
-            print('Ignored {} because of large geometry change of {:.2f} Angstrom'.format(q.logfile, gdist))
-        return False
-
-    return True
 
 
 def parse_args():
