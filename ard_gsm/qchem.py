@@ -6,6 +6,8 @@ from six.moves import xrange
 
 import numpy as np
 
+from ard_gsm.mol import MolGraph
+
 
 class QChemError(Exception):
     pass
@@ -15,13 +17,14 @@ class QChem(object):
     """
     `mol` is an RDKit molecule with Hs already added. It should already
     contain the 3D geometry of the lowest-energy conformer.
+    Alternatively, it can be a MolGraph object with coordinates.
 
     The methods of this class have only been validated for Q-Chem 5.1 DFT
     calculations.
     """
 
     def __init__(self, mol=None, config_file=None, logfile=None):
-        self.mol = mol  # RDKit molecule with Hs added
+        self.mol = mol  # RDKit molecule with Hs added or MolGraph
 
         if config_file is None:
             config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -42,8 +45,12 @@ class QChem(object):
                         raise QChemError('Q-Chem job {} had an error!'.format(logfile))
 
     def make_input(self, path, charge=0, multiplicity=1):
-        symbols = [atom.GetSymbol() for atom in self.mol.GetAtoms()]
-        coords = self.mol.GetConformers()[0].GetPositions()
+        if isinstance(self.mol, MolGraph):
+            symbols = self.mol.get_symbols()
+            coords = self.mol.get_coords()
+        else:
+            symbols = [atom.GetSymbol() for atom in self.mol.GetAtoms()]
+            coords = self.mol.GetConformers()[0].GetPositions()
         self.make_input_from_coords(path, symbols, coords, charge=charge, multiplicity=multiplicity)
 
     def make_input_from_coords(self, path, symbols, coords, charge=0, multiplicity=1):

@@ -69,8 +69,8 @@ def main():
             for num, rxn in reactions_in_group[:args.nextract]:
                 ts = rxn[1]
                 path = os.path.join(out_dir, 'ts_optfreq{:04}.in'.format(num))
-                qts = QChem(config_file=args.config)
-                qts.make_input_from_coords(path, ts.get_symbols(), ts.get_coords())
+                qts = QChem(mol=ts, config_file=args.config)
+                qts.make_input(path)
 
 
 def parse_args():
