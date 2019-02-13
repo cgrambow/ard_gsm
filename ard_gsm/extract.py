@@ -18,9 +18,10 @@ def parse_reaction(reactant, prod_file, ts_file,
     and the TS log file. Return None if there was an error in the TS
     job, the job was not valid, or other criteria are not met.
     """
-    product = qchem2molgraph(prod_file, freq_only=True, print_msg=False)
+    product = qchem2molgraph(prod_file, return_none_on_err=True, freq_only=True, print_msg=False)
     if product is None:
-        raise Exception('Negative frequency for product in {}!'.format(prod_file))
+        print('Ignored {} because of negative frequency or error'.format(prod_file))
+        return None
 
     if not keep_isomorphic and reactant.is_isomorphic(product):
         print('Ignored {} because product is isomorphic with reactant'.format(prod_file))
