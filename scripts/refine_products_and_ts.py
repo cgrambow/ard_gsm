@@ -43,12 +43,14 @@ def main():
                 soft_check=args.soft_check
             )
             if rxn is not None:
+                rxn.reactant_file = reactant_file
                 reactions[num] = rxn
 
-        reactions, _ = remove_duplicates(
+        reactions = remove_duplicates(
             reactions,
             ndup=args.ndup,
             group_by_connection_changes=args.group_by_connection_changes,
+            set_smiles=False
         )
 
         ts_sub_out_dir = os.path.join(args.ts_out_dir, sub_dir_name)
@@ -59,11 +61,10 @@ def main():
             os.makedirs(prod_sub_out_dir)
 
         for num, rxn in reactions.iteritems():
-            _, ts, product = rxn
             ts_file = os.path.join(ts_sub_out_dir, 'ts_optfreq{:04}.in'.format(num))
             prod_file = os.path.join(prod_sub_out_dir, 'prod_optfreq{:04}.in'.format(num))
-            qts = QChem(mol=ts, config_file=args.config_ts)
-            qp = QChem(mol=product, config_file=args.config_prod)
+            qts = QChem(mol=rxn.ts, config_file=args.config_ts)
+            qp = QChem(mol=rxn.product, config_file=args.config_prod)
             qts.make_input(ts_file)
             qp.make_input(prod_file)
 

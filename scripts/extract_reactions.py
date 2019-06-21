@@ -56,43 +56,42 @@ def main():
                 soft_check=args.soft_check
             )
             if rxn is not None:
+                rxn.reactant_smiles = reactant_smiles
+                rxn.reactant_file = reactant_file
                 reactions[num] = rxn
 
-        reactions, product_smiles_dict = remove_duplicates(
+        reactions = remove_duplicates(
             reactions,
             group_by_connection_changes=args.group_by_connection_changes,
             atommap=args.atommap
         )
 
         for num, rxn in reactions.iteritems():
-            reactant, ts, product = rxn
-            product_smiles = product_smiles_dict[num]
-
-            barrier = (ts.energy - reactant.energy) * 627.5095  # Hartree to kcal/mol
             if args.include_energies:
-                energy = (product.energy - reactant.energy) * 627.5095
-                out_file.write('{}   {}   {}   {}\n'.format(reactant_smiles, product_smiles, barrier, energy))
+                out_file.write('{}   {}   {}   {}\n'.format(
+                    rxn.reactant_smiles, rxn.product_smiles, rxn.barrier, rxn.enthalpy)
+                )
             else:
-                out_file.write('{}   {}   {}\n'.format(reactant_smiles, product_smiles, barrier))
+                out_file.write('{}   {}   {}\n'.format(rxn.reactant_smiles, rxn.product_smiles, rxn.barrier))
             if args.xyz_dir is not None:
                 path = os.path.join(args.xyz_dir, 'rxn{:06}.xyz'.format(rxn_num))
-                rxn2xyzfile(rxn, path, reactant_smiles, product_smiles)
+                rxn2xyzfile(rxn, path)
             rxn_num += 1
 
             if args.include_reverse:
                 # For reverse reactions, it's technically possible that some of
                 # them are the same as already extracted reactions in a different
                 # sub dir, but it's unlikely
-                reverse_barrier = (ts.energy - product.energy) * 627.5095
+                rxn = rxn.reverse()
                 if args.include_energies:
-                    energy = (reactant.energy - product.energy) * 627.5095
                     out_file.write('{}   {}   {}   {}\n'.format(
-                        product_smiles, reactant_smiles, reverse_barrier, energy))
+                        rxn.reactant_smiles, rxn.product_smiles, rxn.barrier, rxn.enthalpy)
+                    )
                 else:
-                    out_file.write('{}   {}   {}\n'.format(product_smiles, reactant_smiles, reverse_barrier))
+                    out_file.write('{}   {}   {}\n'.format(rxn.reactant_smiles, rxn.product_smiles, rxn.barrier))
                 if args.xyz_dir is not None:
                     path = os.path.join(args.xyz_dir, 'rxn{:06}.xyz'.format(rxn_num))
-                    rxn2xyzfile(rxn[::-1], path, product_smiles, reactant_smiles)
+                    rxn2xyzfile(rxn, path)
                 rxn_num += 1
 
     print('Wrote {} reactions to {}.'.format(rxn_num, args.out_file))

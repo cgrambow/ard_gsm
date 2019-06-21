@@ -7,7 +7,7 @@ import numpy as np
 
 from ard_gsm.qchem import QChem, QChemError
 from ard_gsm.mol import MolGraph, SanitizationError
-from ard_gsm.reaction import normal_mode_analysis, group_reactions_by_products, group_reactions_by_connection_changes
+from ard_gsm.reaction import Reaction, group_reactions_by_products, group_reactions_by_connection_changes
 from ard_gsm.util import write_xyz_file
 
 
@@ -33,6 +33,8 @@ def parse_reaction(reactant, prod_file, ts_file,
         return None
     ts, qts = ts_qts
 
+    rxn = Reaction(reactant, product, ts, product_file=prod_file, ts_file=ts_file)
+
     # Negative barriers shouldn't occur because we're calculating them
     # based on reactant/product wells, but check this just in case
     if ts.energy - reactant.energy < 0.0:
@@ -44,18 +46,17 @@ def parse_reaction(reactant, prod_file, ts_file,
 
     if normal_mode_check:
         normal_mode = qts.get_normal_modes()[0]  # First one corresponds to imaginary frequency
-        if not normal_mode_analysis(reactant, product, ts, normal_mode, soft_check=soft_check):
+        if not rxn.normal_mode_analysis(normal_mode, soft_check=soft_check):
             print('Ignored {} because of failed normal mode analysis'.format(ts_file))
             return None
 
-    return [reactant, ts, product]
+    return rxn
 
 
-def remove_duplicates(reactions, ndup=1, group_by_connection_changes=False, atommap=True):
+def remove_duplicates(reactions, ndup=1, group_by_connection_changes=False, atommap=True, set_smiles=True):
     """
     Group all reactions and remove all duplicates in each group keeping
-    only at most ndup identical reactions. Also return a dictionary of
-    product SMILES.
+    only at most ndup identical reactions. Also set the product SMILES.
     """
     extracted_reactions = OrderedDict()
     extracted_smiles = {}
@@ -68,27 +69,26 @@ def remove_duplicates(reactions, ndup=1, group_by_connection_changes=False, atom
 
     # Extract the ndup lowest barrier reactions from each group
     for group in reaction_groups:
-        barriers = [(num, ts.energy - r.energy) for num, (r, ts, _) in group.iteritems()]
+        barriers = [(num, rxn.ts.energy - rxn.reactant.energy) for num, rxn in group.iteritems()]
         barriers.sort(key=lambda x: x[1])
 
         nextracted = 0
         for num, _ in barriers:
             rxn = group[num]
-            _, _, product = rxn
-            try:
-                product_smiles = product.perceive_smiles(atommap=atommap)
-            except SanitizationError:
-                print('Ignored number {} because Smiles perception failed'.format(num))
-                continue
+            if set_smiles:
+                try:
+                    rxn.product_smiles = rxn.product.perceive_smiles(atommap=atommap)
+                except SanitizationError:
+                    print('Ignored number {} because Smiles perception failed'.format(num))
+                    continue
 
             extracted_reactions[num] = rxn
-            extracted_smiles[num] = product_smiles
             nextracted += 1
 
             if nextracted >= ndup:
                 break
 
-    return extracted_reactions, extracted_smiles
+    return extracted_reactions
 
 
 def qchem2molgraph(logfile, return_qobj=False, return_none_on_err=False, **kwargs):
@@ -153,8 +153,8 @@ def valid_job(q, edist_max=None, gdist_max=None, ts=False, freq_only=False, prin
     return True
 
 
-def rxn2xyzfile(rxn, path, smi1, smi2):
-    symbols = (mol.get_symbols() for mol in rxn)
-    coords = (mol.get_coords() for mol in rxn)
-    comments = [smi1, '', smi2]
+def rxn2xyzfile(rxn, path):
+    symbols = (mol.get_symbols() for mol in (rxn.reactant, rxn.ts, rxn.product))
+    coords = (mol.get_coords() for mol in (rxn.reactant, rxn.ts, rxn.product))
+    comments = [rxn.reactant_smiles, '', rxn.product_smiles]
     write_xyz_file(path, symbols, coords, comments=comments)
