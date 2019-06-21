@@ -67,12 +67,9 @@ def main():
         )
 
         for num, rxn in reactions.iteritems():
-            if args.include_energies:
-                out_file.write('{}   {}   {}   {}\n'.format(
-                    rxn.reactant_smiles, rxn.product_smiles, rxn.barrier, rxn.enthalpy)
-                )
-            else:
-                out_file.write('{}   {}   {}\n'.format(rxn.reactant_smiles, rxn.product_smiles, rxn.barrier))
+            out_file.write('{}   {}   {}   {}\n'.format(
+                rxn.reactant_smiles, rxn.product_smiles, rxn.barrier, rxn.enthalpy)
+            )
             if args.xyz_dir is not None:
                 path = os.path.join(args.xyz_dir, 'rxn{:06}.xyz'.format(rxn_num))
                 rxn2xyzfile(rxn, path)
@@ -83,12 +80,9 @@ def main():
                 # them are the same as already extracted reactions in a different
                 # sub dir, but it's unlikely
                 rxn = rxn.reverse()
-                if args.include_energies:
-                    out_file.write('{}   {}   {}   {}\n'.format(
-                        rxn.reactant_smiles, rxn.product_smiles, rxn.barrier, rxn.enthalpy)
-                    )
-                else:
-                    out_file.write('{}   {}   {}\n'.format(rxn.reactant_smiles, rxn.product_smiles, rxn.barrier))
+                out_file.write('{}   {}   {}   {}\n'.format(
+                    rxn.reactant_smiles, rxn.product_smiles, rxn.barrier, rxn.enthalpy)
+                )
                 if args.xyz_dir is not None:
                     path = os.path.join(args.xyz_dir, 'rxn{:06}.xyz'.format(rxn_num))
                     rxn2xyzfile(rxn, path)
@@ -106,7 +100,6 @@ def parse_args():
     parser.add_argument('out_file', help='Path to output file')
     parser.add_argument('--xyz_dir', help='If specified, write the geometries for each reaction to this directory')
     parser.add_argument('--include_reverse', action='store_true', help='Also extract reverse reactions')
-    parser.add_argument('--include_energies', action='store_true', help='Also extract reaction energies')
     parser.add_argument('--edist', type=float, default=5.0,
                         help='Ignore TS files with energy differences (kcal/mol) larger than this')
     parser.add_argument('--gdist', type=float, default=1.0,
