@@ -36,7 +36,7 @@ def main():
             continue
         print('Extracting from {}...'.format(sub_dir_name))
         reactant_num = int(num_regex.search(sub_dir_name).group(0))
-        reactant_file = os.path.join(args.reac_dir, 'molopt{}.log'.format(reactant_num))
+        reactant_file = os.path.abspath(os.path.join(args.reac_dir, 'molopt{}.log'.format(reactant_num)))
 
         reactant = qchem2molgraph(reactant_file, freq_only=True, print_msg=False)
         if reactant is None:
@@ -50,8 +50,9 @@ def main():
 
         reactions = {}
         for ts_file in glob.iglob(os.path.join(ts_sub_dir, 'ts_optfreq*.out')):
+            ts_file = os.path.abspath(ts_file)
             num = int(num_regex.search(os.path.basename(ts_file)).group(0))
-            prod_file = os.path.join(args.prod_dir, sub_dir_name, 'prod_optfreq{:04}.out'.format(num))
+            prod_file = os.path.abspath(os.path.join(args.prod_dir, sub_dir_name, 'prod_optfreq{:04}.out'.format(num)))
 
             rxn = parse_reaction(
                 reactant,
