@@ -4,6 +4,7 @@
 from __future__ import division
 
 import argparse
+import csv
 import glob
 import os
 import re
@@ -17,9 +18,16 @@ def main():
     args = parse_args()
     num_regex = re.compile(r'\d+')
     out_file = open(args.out_file, 'w')
+
     if args.xyz_dir is not None:
         if not os.path.exists(args.xyz_dir):
             os.makedirs(args.xyz_dir)
+
+    writer = csv.writer(out_file)
+    header = ['rsmi', 'psmi', 'ea', 'dh']
+    if args.write_file_info:
+        header.extend(['rfile', 'pfile', 'tsfile'])
+    writer.writerow(header)
 
     rxn_num = 0
     for ts_sub_dir in iter_sub_dirs(args.ts_dir):
@@ -67,9 +75,10 @@ def main():
         )
 
         for num, rxn in reactions.iteritems():
-            out_file.write('{}   {}   {}   {}\n'.format(
-                rxn.reactant_smiles, rxn.product_smiles, rxn.barrier, rxn.enthalpy)
-            )
+            row = [rxn.reactant_smiles, rxn.product_smiles, rxn.barrier, rxn.enthalpy]
+            if args.write_file_info:
+                row.extend([rxn.reactant_file, rxn.product_file, rxn.ts_file])
+            writer.writerow(row)
             if args.xyz_dir is not None:
                 path = os.path.join(args.xyz_dir, 'rxn{:06}.xyz'.format(rxn_num))
                 rxn2xyzfile(rxn, path)
@@ -80,9 +89,10 @@ def main():
                 # them are the same as already extracted reactions in a different
                 # sub dir, but it's unlikely
                 rxn = rxn.reverse()
-                out_file.write('{}   {}   {}   {}\n'.format(
-                    rxn.reactant_smiles, rxn.product_smiles, rxn.barrier, rxn.enthalpy)
-                )
+                row = [rxn.reactant_smiles, rxn.product_smiles, rxn.barrier, rxn.enthalpy]
+                if args.write_file_info:
+                    row.extend([rxn.reactant_file, rxn.product_file, rxn.ts_file])
+                writer.writerow(row)
                 if args.xyz_dir is not None:
                     path = os.path.join(args.xyz_dir, 'rxn{:06}.xyz'.format(rxn_num))
                     rxn2xyzfile(rxn, path)
@@ -100,6 +110,7 @@ def parse_args():
     parser.add_argument('out_file', help='Path to output file')
     parser.add_argument('--xyz_dir', help='If specified, write the geometries for each reaction to this directory')
     parser.add_argument('--include_reverse', action='store_true', help='Also extract reverse reactions')
+    parser.add_argument('--write_file_info', action='store_true', help='Write file paths to output file')
     parser.add_argument('--edist', type=float, default=5.0,
                         help='Ignore TS files with energy differences (kcal/mol) larger than this')
     parser.add_argument('--gdist', type=float, default=1.0,
