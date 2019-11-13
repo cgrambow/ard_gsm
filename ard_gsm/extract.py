@@ -12,7 +12,8 @@ from ard_gsm.util import write_xyz_file
 
 
 def parse_reaction(reactant, prod_file, ts_file,
-                   keep_isomorphic=False, edist_max=5.0, gdist_max=1.0, normal_mode_check=False, soft_check=False):
+                   keep_isomorphic=False, edist_max=5.0, gdist_max=1.0,
+                   normal_mode_check=False, soft_check=False, negative_barrier_check=True):
     """
     Parse reaction given the reactant MolGraph, the product log file,
     and the TS log file. Return None if there was an error in the TS
@@ -37,12 +38,13 @@ def parse_reaction(reactant, prod_file, ts_file,
 
     # Negative barriers shouldn't occur because we're calculating them
     # based on reactant/product wells, but check this just in case
-    if ts.energy - reactant.energy < 0.0:
-        print('Ignored {} because of negative barrier'.format(ts_file))
-        return None
-    elif ts.energy - product.energy < 0.0:
-        print('Ignored {} because of negative reverse barrier'.format(ts_file))
-        return None
+    if negative_barrier_check:
+        if ts.energy - reactant.energy < 0.0:
+            print('Ignored {} because of negative barrier'.format(ts_file))
+            return None
+        elif ts.energy - product.energy < 0.0:
+            print('Ignored {} because of negative reverse barrier'.format(ts_file))
+            return None
 
     if normal_mode_check:
         normal_mode = qts.get_normal_modes()[0]  # First one corresponds to imaginary frequency
