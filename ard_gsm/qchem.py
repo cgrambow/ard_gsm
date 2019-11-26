@@ -53,16 +53,18 @@ class QChem(object):
         self.make_input_from_coords(path, symbols, coords, charge=charge, multiplicity=multiplicity)
 
     def make_input_from_coords(self, path, symbols, coords, charge=0, multiplicity=1):
-        for i, line in enumerate(self.config):
+        config = self.config[:]
+
+        for i, line in enumerate(config):
             if line.startswith('$molecule'):
                 cblock = [f'{symbol}  {xyz[0]: .10f}  {xyz[1]: .10f}  {xyz[2]: .10f}'
                           for symbol, xyz in zip(symbols, coords)]
                 cblock.insert(0, f'{charge} {multiplicity}')
-                self.config[(i+1):(i+1)] = cblock
+                config[(i+1):(i+1)] = cblock
                 break  # If there are more than 1 molecule block, only fill the first one
 
         with open(path, 'w') as f:
-            for line in self.config:
+            for line in config:
                 f.write(line + '\n')
 
     def get_energy(self, first=False):
