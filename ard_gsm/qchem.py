@@ -43,17 +43,19 @@ class QChem(object):
                     if 'fatal error' in line:
                         raise QChemError(f'Q-Chem job {logfile} had an error!')
 
-    def make_input(self, path, charge=0, multiplicity=1):
+    def make_input(self, path, charge=0, multiplicity=1, comment=None):
         if isinstance(self.mol, MolGraph):
             symbols = self.mol.get_symbols()
             coords = self.mol.get_coords()
         else:
             symbols = [atom.GetSymbol() for atom in self.mol.GetAtoms()]
             coords = self.mol.GetConformers()[0].GetPositions()
-        self.make_input_from_coords(path, symbols, coords, charge=charge, multiplicity=multiplicity)
+        self.make_input_from_coords(path, symbols, coords, charge=charge, multiplicity=multiplicity, comment=comment)
 
-    def make_input_from_coords(self, path, symbols, coords, charge=0, multiplicity=1):
+    def make_input_from_coords(self, path, symbols, coords, charge=0, multiplicity=1, comment=None):
         config = self.config[:]
+        if comment is not None:
+            config.insert(0, comment + '\n')
 
         for i, line in enumerate(config):
             if line.startswith('$molecule'):
