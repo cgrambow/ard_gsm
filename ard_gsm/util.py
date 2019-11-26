@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
 
-import cPickle as pickle
+import pickle
 import gzip
 import os
-from six.moves import xrange
 
 import numpy as np
 
@@ -74,14 +73,14 @@ def write_xyz_file(path, symbols_list, coords_list, comments=None):
     """
     if comments is None:
         # Make generator yielding empty strings
-        comments = ('' for _ in xrange(len(symbols_list)))
+        comments = ('' for _ in range(len(symbols_list)))
 
     with open(path, 'w') as f:
         for symbols, coords, comment in zip(symbols_list, coords_list, comments):
             f.write(str(len(symbols)) + '\n')  # Number of atoms
             f.write(comment + '\n')
             for s, c in zip(symbols, coords):
-                f.write('{0}  {1[0]: .10f}  {1[1]: .10f}  {1[2]: .10f}\n'.format(s, c))
+                f.write(f'{s}  {c[0]: .10f}  {c[1]: .10f}  {c[2]: .10f}\n')
 
 
 def get_dist_vecs(coords):

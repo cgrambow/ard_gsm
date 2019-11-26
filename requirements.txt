@@ -1,4 +1,3 @@
 numpy
 openbabel>=2.4.0
 rdkit>=2018.03.1
-six

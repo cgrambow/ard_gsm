@@ -24,9 +24,9 @@ class DrivingCoords(object):
     def __str__(self):
         s = 'NEW\n'
         for idxs in self._break_idxs:
-            s += 'BREAK {0[0]} {0[1]}\n'.format(idxs)
+            s += f'BREAK {idxs[0]} {idxs[1]}\n'
         for idxs in self._form_idxs:
-            s += 'ADD {0[0]} {0[1]}\n'.format(idxs)
+            s += f'ADD {idxs[0]} {idxs[1]}\n'
         return s
 
     def __eq__(self, other):
@@ -75,7 +75,7 @@ class DrivingCoords(object):
         atoms_dict = {}
         for atom in atoms:
             if atom.idx is None:
-                raise Exception('Atom {} is missing index'.format(atom.symbol))
+                raise Exception(f'Atom {atom.symbol} is missing index')
             else:
                 atoms_dict[atom.idx] = atom
 
@@ -164,10 +164,10 @@ def change_connections(mol, connections_to_break, connections_to_form, test_vali
         # Only have to test the atoms involved in the changed connections
         for connection in connections_to_break:
             if not test_connection_validity(connection):
-                raise ConnectionError('Breaking {} resulted in violation of connection limits'.format(connection))
+                raise ConnectionError(f'Breaking {connection} resulted in violation of connection limits')
         for connection in connections_to_form:
             if not test_connection_validity(connection):
-                raise ConnectionError('Forming {} resulted in violation of connection limits'.format(connection))
+                raise ConnectionError(f'Forming {connection} resulted in violation of connection limits')
 
 
 def test_connection_validity(connection):

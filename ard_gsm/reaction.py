@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
 
-from __future__ import division
-
 import numpy as np
 
 from ard_gsm.util import get_dist_vecs
@@ -112,7 +110,7 @@ def group_reactions_by_products(reactions):
     Note: Assumes that reactants and products already have connections assigned.
     """
     groups = []
-    for num, rxn in reactions.iteritems():
+    for num, rxn in reactions.items():
         product = rxn.product
         for group in groups:
             product_in_group = group[list(group)[0]].product  # Product from "random" reaction in group
@@ -132,9 +130,9 @@ def group_reactions_by_connection_changes(reactions):
 
     Note: Assumes that reactants and products already have connections assigned.
     """
-    connection_changes = {num: get_connection_changes(rxn.reactant, rxn.ts) for num, rxn in reactions.iteritems()}
+    connection_changes = {num: get_connection_changes(rxn.reactant, rxn.ts) for num, rxn in reactions.items()}
     groups = []
-    for num, rxn in reactions.iteritems():
+    for num, rxn in reactions.items():
         for group in groups:
             if connection_changes[num] == connection_changes[list(group)[0]]:  # list(group)[0] is "first" key
                 group[num] = rxn

@@ -2,7 +2,6 @@
 # -*- coding:utf-8 -*-
 
 import os
-from six.moves import xrange
 
 import numpy as np
 
@@ -42,7 +41,7 @@ class QChem(object):
                 self.log = f.read().splitlines()
                 for line in self.log:
                     if 'fatal error' in line:
-                        raise QChemError('Q-Chem job {} had an error!'.format(logfile))
+                        raise QChemError(f'Q-Chem job {logfile} had an error!')
 
     def make_input(self, path, charge=0, multiplicity=1):
         if isinstance(self.mol, MolGraph):
@@ -56,9 +55,9 @@ class QChem(object):
     def make_input_from_coords(self, path, symbols, coords, charge=0, multiplicity=1):
         for i, line in enumerate(self.config):
             if line.startswith('$molecule'):
-                cblock = ['{0}  {1[0]: .10f}  {1[1]: .10f}  {1[2]: .10f}'.format(symbol, xyz)
+                cblock = [f'{symbol}  {xyz[0]: .10f}  {xyz[1]: .10f}  {xyz[2]: .10f}'
                           for symbol, xyz in zip(symbols, coords)]
-                cblock.insert(0, '{} {}'.format(charge, multiplicity))
+                cblock.insert(0, f'{charge} {multiplicity}')
                 self.config[(i+1):(i+1)] = cblock
                 break  # If there are more than 1 molecule block, only fill the first one
 
@@ -77,13 +76,13 @@ class QChem(object):
             elif 'energy in the final basis set' in line:  # Other DFT methods
                 return float(line.split()[-1])
         else:
-            raise QChemError('Energy not found in {}'.format(self.logfile))
+            raise QChemError(f'Energy not found in {self.logfile}')
 
     def get_geometry(self, first=False):
         if first:
-            iterable = xrange(len(self.log))
+            iterable = range(len(self.log))
         else:
-            iterable = reversed(xrange(len(self.log)))
+            iterable = reversed(range(len(self.log)))
         for i in iterable:
             line = self.log[i]
             if 'Standard Nuclear Orientation' in line:
@@ -96,7 +95,7 @@ class QChem(object):
                     else:
                         return symbols, np.array(coords)
         else:
-            raise QChemError('Geometry not found in {}'.format(self.logfile))
+            raise QChemError(f'Geometry not found in {self.logfile}')
 
     def get_moments_of_inertia(self):
         for line in reversed(self.log):
@@ -115,11 +114,11 @@ class QChem(object):
                 freqs.reverse()
                 return np.array(freqs)
         else:
-            raise QChemError('Frequencies not found in {}'.format(self.logfile))
+            raise QChemError(f'Frequencies not found in {self.logfile}')
 
     def get_normal_modes(self):
         modes = []
-        for i in reversed(xrange(len(self.log))):
+        for i in reversed(range(len(self.log))):
             line = self.log[i]
             if 'Raman Active' in line:
                 mode1, mode2, mode3 = [], [], []
@@ -136,18 +135,18 @@ class QChem(object):
                 modes.reverse()
                 return modes
         else:
-            raise QChemError('Normal modes not found in {}'.format(self.logfile))
+            raise QChemError(f'Normal modes not found in {self.logfile}')
 
     def get_zpe(self):
         for line in reversed(self.log):
             if 'Zero point vibrational energy' in line:
                 return float(line.split()[-2]) / 627.5095  # Convert to Hartree
         else:
-            raise QChemError('ZPE not found in {}'.format(self.logfile))
+            raise QChemError(f'ZPE not found in {self.logfile}')
 
     def get_multiplicity(self):
         for i, line in enumerate(self.log):
             if '$molecule' in line:
                 return int(self.log[i+1].strip().split()[-1])
         else:
-            raise QChemError('Multiplicity not found in {}'.format(self.logfile))
+            raise QChemError(f'Multiplicity not found in {self.logfile}')

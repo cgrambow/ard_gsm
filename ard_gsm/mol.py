@@ -99,12 +99,12 @@ class MolData(object):
 
     def copy(self):
         s = MolData()
-        for attr, val in self.__dict__.iteritems():
+        for attr, val in self.__dict__.items():
             setattr(s, attr, val)
         return s
 
     def __str__(self):
-        return '\n'.join('{}: {}'.format(k, v) for k, v in sorted(self.__dict__.iteritems()))
+        return '\n'.join(f'{k}: {v}' for k, v in sorted(self.__dict__.items()))
 
     def parse_data(self, path):
         """
@@ -189,10 +189,10 @@ class Atom(object):
         self.connections = {}
 
     def __str__(self):
-        return '{}: {}'.format(self.idx, self.symbol)
+        return f'{self.idx}: {self.symbol}'
 
     def __repr__(self):
-        return '<Atom "{}">'.format(str(self))
+        return f'<Atom "{str(self)}">'
 
     def copy(self):
         return Atom(
@@ -222,10 +222,10 @@ class Connection(object):
         self._make_order_invariant()
 
     def __str__(self):
-        return '({})--({})'.format(str(self.atom1), str(self.atom2))
+        return f'({str(self.atom1)})--({str(self.atom2)})'
 
     def __repr__(self):
-        return '<Connection "{}">'.format(str(self))
+        return f'<Connection "{str(self)}">'
 
     def __eq__(self, other):
         return str(self) == str(other)
@@ -306,17 +306,17 @@ class MolGraph(object):
         formula = ''
         if 'C' in elements.keys():
             count = elements['C']
-            formula += 'C{:d}'.format(count) if count > 1 else 'C'
+            formula += f'C{count:d}' if count > 1 else 'C'
             del elements['C']
             if 'H' in elements.keys():
                 count = elements['H']
-                formula += 'H{:d}'.format(count) if count > 1 else 'H'
+                formula += f'H{count:d}' if count > 1 else 'H'
                 del elements['H']
-        keys = elements.keys()
+        keys = list(elements.keys())
         keys.sort()
         for key in keys:
             count = elements[key]
-            formula += '{}{:d}'.format(key, count) if count > 1 else key
+            formula += f'{key}{count:d}' if count > 1 else key
 
         return formula
 
@@ -329,7 +329,7 @@ class MolGraph(object):
                      for connection in self.get_all_connections()]
         rmg_mol = rmg_molecule.Molecule(atoms=rmg_atoms)
         for bond in rmg_bonds:
-            rmg_mol.addBond(bond)
+            rmg_mol.add_bond(bond)
 
         return rmg_mol
 
@@ -347,7 +347,7 @@ class MolGraph(object):
             rd_mol.AddAtom(rd_atom)
 
         for atom1 in self:
-            for atom2, connection in atom1.connections.iteritems():
+            for atom2, connection in atom1.connections.items():
                 idx1 = self.atoms.index(atom1)  # This is the index in the atoms list
                 idx2 = self.atoms.index(atom2)
                 if idx1 < idx2:
@@ -376,7 +376,7 @@ class MolGraph(object):
         for atom in self:
             assert len(atom.coords) != 0
         symbols, coords = self.get_geometry()
-        cblock = ['{0}  {1[0]: .10f}  {1[1]: .10f}  {1[2]: .10f}'.format(s, c) for s, c in zip(symbols, coords)]
+        cblock = [f'{s}  {c[0]: .10f}  {c[1]: .10f}  {c[2]: .10f}' for s, c in zip(symbols, coords)]
         return str(len(symbols)) + '\n' + comment + '\n' + '\n'.join(cblock)
 
     def perceive_smiles(self, atommap=True):
@@ -418,8 +418,7 @@ class MolGraph(object):
         # RDKit doesn't like some hypervalent atoms
         if mol_sanitized is None:
             raise SanitizationError(
-                'Could not convert \n{}\nto Smiles. Unsanitized Smiles: {}'.format(self.to_xyz(),
-                                                                                   pybel_mol.write('smi').strip())
+                f'Could not convert \n{self.to_xyz()}\nto Smiles. Unsanitized Smiles: {pybel_mol.write("smi").strip()}'
             )
 
         # RDKit adds unnecessary hydrogens in some cases. If
@@ -430,8 +429,7 @@ class MolGraph(object):
             atoms_in_mol_sani[atom.GetAtomicNum()] = atoms_in_mol_sani.get(atom.GetAtomicNum(), 0) + 1
         if atoms_in_mol_sani != atoms_in_mol_true:
             raise SanitizationError(
-                'Could not convert \n{}\nto Smiles. Wrong Smiles: {}'.format(self.to_xyz(),
-                                                                             Chem.MolToSmiles(mol_sanitized))
+                f'Could not convert \n{self.to_xyz()}\nto Smiles. Wrong Smiles: {Chem.MolToSmiles(mol_sanitized)}'
             )
 
         if not atommap:
@@ -475,7 +473,7 @@ class MolGraph(object):
             return connection
 
     def get_all_connections(self):
-        return {connection for atom in self.atoms for connection in atom.connections.itervalues()}
+        return {connection for atom in self.atoms for connection in atom.connections.values()}
 
     def get_connection(self, atom1, atom2):
         if atom1 not in self.atoms or atom2 not in self.atoms:
@@ -583,7 +581,7 @@ class MolGraph(object):
         """
         self_rmg = self.to_rmg_mol()
         other_rmg = other.to_rmg_mol()
-        return self_rmg.isIsomorphic(other_rmg)
+        return self_rmg.is_isomorphic(other_rmg)
 
     def set_coords(self, coords):
         """
