@@ -1,3 +1,4 @@
 numpy
 openbabel>=2.4.0
+pandas
 rdkit>=2018.03.1
