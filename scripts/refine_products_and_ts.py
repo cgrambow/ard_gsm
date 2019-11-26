@@ -19,18 +19,18 @@ def main():
         sub_dir_name = os.path.basename(ts_sub_dir)
         if not sub_dir_name.startswith('gsm'):
             continue
-        print('Extracting from {}...'.format(sub_dir_name))
+        print(f'Extracting from {sub_dir_name}...')
 
         reactant_num = int(num_regex.search(sub_dir_name).group(0))
-        reactant_file = os.path.join(args.reac_dir, 'molopt{}.log'.format(reactant_num))
+        reactant_file = os.path.join(args.reac_dir, f'molopt{reactant_num}.log')
         reactant = qchem2molgraph(reactant_file, freq_only=True, print_msg=False)
         if reactant is None:
-            raise Exception('Negative frequency for reactant in {}!'.format(reactant_file))
+            raise Exception(f'Negative frequency for reactant in {reactant_file}!')
 
         reactions = {}
         for ts_file in glob.iglob(os.path.join(ts_sub_dir, 'ts_optfreq*.out')):
             num = int(num_regex.search(os.path.basename(ts_file)).group(0))
-            prod_file = os.path.join(args.prod_dir, sub_dir_name, 'prod_optfreq{:04}.out'.format(num))
+            prod_file = os.path.join(args.prod_dir, sub_dir_name, f'prod_optfreq{num:04}.out')
 
             rxn = parse_reaction(
                 reactant,
@@ -60,9 +60,9 @@ def main():
         if not os.path.exists(prod_sub_out_dir):
             os.makedirs(prod_sub_out_dir)
 
-        for num, rxn in reactions.iteritems():
-            ts_file = os.path.join(ts_sub_out_dir, 'ts_optfreq{:04}.in'.format(num))
-            prod_file = os.path.join(prod_sub_out_dir, 'prod_optfreq{:04}.in'.format(num))
+        for num, rxn in reactions.items():
+            ts_file = os.path.join(ts_sub_out_dir, f'ts_optfreq{num:04}.in')
+            prod_file = os.path.join(prod_sub_out_dir, f'prod_optfreq{num:04}.in')
             qts = QChem(mol=rxn.ts, config_file=args.config_ts)
             qp = QChem(mol=rxn.product, config_file=args.config_prod)
             qts.make_input(ts_file)

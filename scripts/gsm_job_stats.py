@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
 
-from __future__ import division
-
 import argparse
 import csv
 import glob
@@ -26,10 +24,10 @@ def main():
     for gsm_log in glob.iglob(os.path.join(gsm_dir, 'gsm*.out')):
         num = int(num_regex.search(os.path.basename(gsm_log)).group(0))
 
-        slurm_log = os.path.join(gsm_dir, '{}.log'.format(num))
-        string_file = os.path.join(gsm_dir, 'stringfile.xyz{:04}'.format(num))
-        isomers_file = os.path.join(scr_dir, 'ISOMERS{:04}'.format(num))
-        ts_file = os.path.join(scr_dir, 'tsq{:04}.xyz'.format(num))
+        slurm_log = os.path.join(gsm_dir, f'{num}.log')
+        string_file = os.path.join(gsm_dir, f'stringfile.xyz{num:04}')
+        isomers_file = os.path.join(scr_dir, f'ISOMERS{num:04}')
+        ts_file = os.path.join(scr_dir, f'tsq{num:04}.xyz')
 
         (niter,
          ngrad,
@@ -59,7 +57,7 @@ def main():
             error = 'scf'
         # ##### Temporary #####
         elif ts_type != '-FL-' and not os.path.exists(ts_file):
-            raise Exception('Other error in {}!'.format(gsm_log))
+            raise Exception(f'Other error in {gsm_log}!')
         #####
 
         if ts_type in {'-XTS-', '-TS-'} and os.path.exists(string_file):
@@ -71,7 +69,7 @@ def main():
             if rxn_energy >= barrier:
                 rxn_energy = energies[-2] - energies[0]
                 if rxn_energy >= barrier:
-                    print('Warning: Ignored {} because of invalid reaction energy'.format(gsm_log))
+                    print(f'Warning: Ignored {gsm_log} because of invalid reaction energy')
                     continue
             intended = check_bond_changes(isomers_file, xyzs)
             stats = Stats(num=num,
@@ -111,22 +109,22 @@ def main():
     frac_success = len(ngrads_success) / len(ngrads)
     frac_intended = (sum(1 for stats in results if stats.ts_type in {'-XTS-', '-TS-'} and stats.intended)
                      / len(ngrads_success))
-    print('Average number of gradients: {:.0f}'.format(avg_grad))
-    print('Maximum number of gradients: {}'.format(max_grad))
-    print('Average number of gradients in successful jobs: {:.0f}'.format(avg_grad_success))
-    print('Maximum number of gradients in successful jobs: {}'.format(max_grad_success))
-    print('Fraction of jobs that succeeded: {:.4f}'.format(frac_success))
-    print('Fraction of successful jobs that were intended: {:.4f}'.format(frac_intended))
+    print(f'Average number of gradients: {avg_grad:.0f}')
+    print(f'Maximum number of gradients: {max_grad}')
+    print(f'Average number of gradients in successful jobs: {avg_grad_success:.0f}')
+    print(f'Maximum number of gradients in successful jobs: {max_grad_success}')
+    print(f'Fraction of jobs that succeeded: {frac_success:.4f}')
+    print(f'Fraction of successful jobs that were intended: {frac_intended:.4f}')
     print('Lowest barriers:')
     results_with_barrier = [stats for stats in results if hasattr(stats, 'barrier')]
     results_with_barrier.sort(key=lambda s: s.barrier)
     for i in range(min(10, len(results_with_barrier))):
-        print('{0.num}: {0.barrier:.2f}'.format(results_with_barrier[i]))
+        print('{results_with_barrier[i].num}: {results_with_barrier[i].barrier:.2f}')
 
 
 class Stats(object):
     def __init__(self, **kwargs):
-        for k, v in kwargs.iteritems():
+        for k, v in kwargs.items():
             setattr(self, k, v)
 
 

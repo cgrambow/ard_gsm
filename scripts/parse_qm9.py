@@ -41,7 +41,7 @@ def main():
         os.makedirs(out_dir)
 
     pickle_dump(args.out_file, data, compress=True)
-    print('Dumped {} molecules to {}'.format(len(data), args.out_file))
+    print(f'Dumped {len(data)} molecules to {args.out_file}')
 
 
 def parse_args():

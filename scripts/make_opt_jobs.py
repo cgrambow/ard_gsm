@@ -51,11 +51,11 @@ def main():
     print('Making input files...')
     for i, mol in enumerate(mols):
         q = QChem(mol, config_file=args.config)
-        q.make_input(os.path.join(args.out_dir, 'molopt{}.in'.format(i)))
+        q.make_input(os.path.join(args.out_dir, f'molopt{i}.in'))
 
     with open(os.path.join(args.out_dir, 'names.txt'), 'w') as f:
         for i, name in enumerate(names):
-            f.write('{}: {}\n'.format(i, name))
+            f.write(f'{i}: {name}\n')
 
 
 def parse_args():

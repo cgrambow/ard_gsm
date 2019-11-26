@@ -30,15 +30,15 @@ def main():
         for symbol in connection_limits:
             ll = connection_limits[symbol][0]
             ul = connection_limits[symbol][1]
-            f.write('  {}: {}, {}\n'.format(symbol, ll, ul))
-        f.write('maxbreak = {}\n'.format(args.maxbreak))
-        f.write('maxform = {}\n'.format(args.maxform))
-        f.write('maxchange = {}\n'.format(args.maxchange))
-        f.write('single_change = {}\n'.format(not args.ignore_single_change))
-        f.write('equiv_Hs = {}\n'.format(args.equiv_Hs))
-        f.write('minbreak = {}\n'.format(args.minbreak))
-        f.write('minform = {}\n'.format(args.minform))
-        f.write('minchange = {}\n'.format(args.minchange))
+            f.write(f'  {symbol}: {ll}, {ul}\n')
+        f.write(f'maxbreak = {args.maxbreak}\n')
+        f.write(f'maxform = {args.maxform}\n')
+        f.write(f'maxchange = {args.maxchange}\n')
+        f.write(f'single_change = {not args.ignore_single_change}\n')
+        f.write(f'equiv_Hs = {args.equiv_Hs}\n')
+        f.write(f'minbreak = {args.minbreak}\n')
+        f.write(f'minform = {args.minform}\n')
+        f.write(f'minchange = {args.minchange}\n')
 
     for log_idx, logfile in enumerate(glob.iglob(os.path.join(args.qlog_dir, '*.log'))):
         try:
@@ -52,18 +52,18 @@ def main():
             freqs = log.get_frequencies()
         except QChemError as e:
             if 'not found' in str(e):
-                print('Warning: Frequencies could not be found in {}'.format(logfile))
+                print(f'Warning: Frequencies could not be found in {logfile}')
             else:
                 raise
         else:
             if any(freq < 0.0 for freq in freqs):
-                raise Exception('Negative frequency in {}! Not optimized'.format(logfile))
+                raise Exception(f'Negative frequency in {logfile}! Not optimized')
 
         symbols, coords = log.get_geometry()
         mol = MolGraph(symbols=symbols, coords=coords)
         mol.infer_connections()
 
-        print('Making driving coordinates from {}'.format(logfile))
+        print(f'Making driving coordinates from {logfile}')
         driving_coords_set = generate_driving_coords(
             mol,
             maxbreak=args.maxbreak,
@@ -82,7 +82,7 @@ def main():
             # Couldn't find number in filename
             num = log_idx
 
-        out_dir = os.path.join(pdir, 'gsm{}'.format(num))
+        out_dir = os.path.join(pdir, f'gsm{num}')
         scr_dir = os.path.join(out_dir, 'scratch')
         if not os.path.exists(out_dir):
             os.mkdir(out_dir)
@@ -95,15 +95,15 @@ def main():
         shutil.copy(config_gscreate, os.path.join(out_dir, 'gscreate'))
 
         for idx, driving_coords in enumerate(driving_coords_set):
-            isomers_file = os.path.join(scr_dir, 'ISOMERS{:04}'.format(idx))
-            initial_file = os.path.join(scr_dir, 'initial{:04}.xyz'.format(idx))
+            isomers_file = os.path.join(scr_dir, f'ISOMERS{idx:04}')
+            initial_file = os.path.join(scr_dir, f'initial{idx:04}.xyz')
             with open(isomers_file, 'w') as f:
                 f.write(str(driving_coords))
             with open(initial_file, 'w') as f:
                 f.write(str(len(symbols)) + '\n')
                 f.write('\n')
                 for symbol, xyz in zip(symbols, coords):
-                    f.write('{0}  {1[0]: .10f}  {1[1]: .10f}  {1[2]: .10f}\n'.format(symbol, xyz))
+                    f.write(f'{symbol}  {xyz[0]: .10f}  {xyz[1]: .10f}  {xyz[2]: .10f}\n')
 
 
 def parse_args():

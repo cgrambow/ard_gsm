@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
 
-from __future__ import division
-
 import argparse
 import csv
 import glob
@@ -54,25 +52,25 @@ def main():
         sub_dir_name = os.path.basename(ts_sub_dir)
         if not sub_dir_name.startswith('gsm'):
             continue
-        print('Extracting from {}...'.format(sub_dir_name))
+        print(f'Extracting from {sub_dir_name}...')
         reactant_num = int(num_regex.search(sub_dir_name).group(0))
-        reactant_file = os.path.abspath(os.path.join(args.reac_dir, 'molopt{}.log'.format(reactant_num)))
+        reactant_file = os.path.abspath(os.path.join(args.reac_dir, f'molopt{reactant_num}.log'))
 
         reactant = qchem2molgraph(reactant_file, freq_only=True, print_msg=False)
         if reactant is None:
-            raise Exception('Negative frequency for reactant in {}!'.format(reactant_file))
+            raise Exception(f'Negative frequency for reactant in {reactant_file}!')
 
         try:
             reactant_smiles = reactant.perceive_smiles(atommap=args.atommap)
         except SanitizationError:
-            print('Error during Smiles conversion in {}'.format(reactant_file))
+            print(f'Error during Smiles conversion in {reactant_file}')
             raise
 
         reactions = {}
         for ts_file in glob.iglob(os.path.join(ts_sub_dir, 'ts_optfreq*.out')):
             ts_file = os.path.abspath(ts_file)
             num = int(num_regex.search(os.path.basename(ts_file)).group(0))
-            prod_file = os.path.abspath(os.path.join(args.prod_dir, sub_dir_name, 'prod_optfreq{:04}.out'.format(num)))
+            prod_file = os.path.abspath(os.path.join(args.prod_dir, sub_dir_name, f'prod_optfreq{num:04}.out'))
 
             rxn = parse_reaction(
                 reactant,
@@ -92,13 +90,13 @@ def main():
                 atommap=args.atommap
             )
 
-        for num, rxn in reactions.iteritems():
+        for num, rxn in reactions.items():
             row = [rxn.reactant_smiles, rxn.product_smiles, rxn.barrier, rxn.enthalpy]
             if args.write_file_info:
                 row.extend([rxn.reactant_file, rxn.product_file, rxn.ts_file])
             writer.writerow(row)
             if args.xyz_dir is not None:
-                path = os.path.join(args.xyz_dir, 'rxn{:06}.xyz'.format(rxn_num))
+                path = os.path.join(args.xyz_dir, f'rxn{rxn_num:06}.xyz')
                 rxn2xyzfile(rxn, path)
             rxn_num += 1
 
@@ -112,11 +110,11 @@ def main():
                     row.extend([rxn.reactant_file, rxn.product_file, rxn.ts_file])
                 writer.writerow(row)
                 if args.xyz_dir is not None:
-                    path = os.path.join(args.xyz_dir, 'rxn{:06}.xyz'.format(rxn_num))
+                    path = os.path.join(args.xyz_dir, f'rxn{rxn_num:06}.xyz')
                     rxn2xyzfile(rxn, path)
                 rxn_num += 1
 
-    print('Wrote {} reactions to {}.'.format(rxn_num, args.out_file))
+    print(f'Wrote {rxn_num} reactions to {args.out_file}.')
     out_file.close()
 
 

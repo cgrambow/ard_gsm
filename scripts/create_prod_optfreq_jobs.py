@@ -21,10 +21,10 @@ def main():
         elif not args.overwrite:
             continue
 
-        print('Extracting from {}...'.format(gsm_sub_dir))
+        print(f'Extracting from {gsm_sub_dir}...')
         for gsm_log in glob.iglob(os.path.join(gsm_sub_dir, 'gsm*.out')):
             num = int(num_regex.search(os.path.basename(gsm_log)).group(0))
-            string_file = os.path.join(gsm_sub_dir, 'stringfile.xyz{:04}'.format(num))
+            string_file = os.path.join(gsm_sub_dir, f'stringfile.xyz{num:04}')
 
             if is_successful(gsm_log):
                 # Optimize van-der-Waals wells instead of separated products
@@ -34,7 +34,7 @@ def main():
                 second_to_last_energy = xyzs[-2][-1]
                 if last_energy > second_to_last_energy:  # Something went wrong in product optimization
                     continue
-                path = os.path.join(out_dir, 'prod_optfreq{:04}.in'.format(num))
+                path = os.path.join(out_dir, f'prod_optfreq{num:04}.in')
                 q = QChem(config_file=args.config)
                 q.make_input_from_coords(path, *xyzs[-1][:-1])
 

@@ -25,12 +25,12 @@ def main():
         elif not args.overwrite:
             continue
 
-        print('Extracting from {}...'.format(sub_dir_name))
+        print(f'Extracting from {sub_dir_name}...')
 
         reactions = {}
         for prod_file in glob.iglob(os.path.join(prod_sub_dir, 'prod_optfreq*.out')):
             num = int(num_regex.search(os.path.basename(prod_file)).group(0))
-            string_file = os.path.join(args.gsm_dir, sub_dir_name, 'stringfile.xyz{:04}'.format(num))
+            string_file = os.path.join(args.gsm_dir, sub_dir_name, f'stringfile.xyz{num:04}')
 
             try:
                 qp = QChem(logfile=prod_file)
@@ -38,7 +38,7 @@ def main():
                 print(e)
                 continue
             if any(freq < 0.0 for freq in qp.get_frequencies()):
-                print('Ignored {} because of negative frequency'.format(prod_file))
+                print(f'Ignored {prod_file} because of negative frequency')
                 continue
 
             xyzs = read_xyz_file(string_file, with_energy=True)
@@ -52,7 +52,7 @@ def main():
             reactant.infer_connections()
             product.infer_connections()
             if not args.keep_isomorphic_reactions and reactant.is_isomorphic(product):
-                print('Ignored {} because product is isomorphic with reactant'.format(prod_file))
+                print(f'Ignored {prod_file} because product is isomorphic with reactant')
                 continue
             reactions[num] = [reactant, ts, product]
 
@@ -63,12 +63,12 @@ def main():
 
         for group in reaction_groups:
             # Only consider TS energies instead of "barriers" b/c energies are relative to reactant
-            reactions_in_group = group.items()  # Make list
+            reactions_in_group = list(group.items())  # Make list
             reactions_in_group.sort(key=lambda r: r[1][1].energy)  # Index 1 is TS
 
             for num, rxn in reactions_in_group[:args.nextract]:
                 ts = rxn[1]
-                path = os.path.join(out_dir, 'ts_optfreq{:04}.in'.format(num))
+                path = os.path.join(out_dir, f'ts_optfreq{num:04}.in')
                 qts = QChem(mol=ts, config_file=args.config)
                 qts.make_input(path)
 

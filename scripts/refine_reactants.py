@@ -25,12 +25,12 @@ def main():
             freqs = log.get_frequencies()
         except QChemError as e:
             if 'not found' in str(e):
-                print('Warning: Frequencies could not be found in {}'.format(logfile))
+                print(f'Warning: Frequencies could not be found in {logfile}')
             else:
                 raise
         else:
             if any(freq < 0.0 for freq in freqs):
-                raise Exception('Negative frequency in {}! Not optimized'.format(logfile))
+                raise Exception(f'Negative frequency in {logfile}! Not optimized')
 
         symbols, coords = log.get_geometry()
         mult = log.get_multiplicity()
