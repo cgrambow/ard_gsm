@@ -7,7 +7,7 @@ import os
 import re
 import shutil
 
-from ard_gsm.qchem import QChem, QChemError
+from ard_gsm.qchem import QChem, QChemError, insert_into_qcinput
 from ard_gsm.mol import MolGraph
 from ard_gsm.driving_coords import generate_driving_coords
 from config.limits import connection_limits
@@ -40,6 +40,13 @@ def main():
         f.write(f'minbreak = {args.minbreak}\n')
         f.write(f'minform = {args.minform}\n')
         f.write(f'minchange = {args.minchange}\n')
+
+    with open(config_qchem_start) as f:
+        config_qchem_start = f.readlines()
+    if args.mem is not None:
+        config_qchem_start = insert_into_qcinput(
+            config_qchem_start, f'MEM_TOTAL                 {args.mem:d}\n', '$rem'
+        )
 
     for log_idx, logfile in enumerate(glob.iglob(os.path.join(args.qlog_dir, '*.log'))):
         try:
@@ -91,7 +98,13 @@ def main():
         if not os.path.exists(scr_dir):
             os.mkdir(scr_dir)
 
-        shutil.copy(config_qchem_start, os.path.join(out_dir, 'qstart'))
+        # Use charge and multiplicity from reactant job
+        config_qchem_start_tmp = insert_into_qcinput(
+            config_qchem_start, f'{log.get_charge()} {log.get_multiplicity()}\n', '$molecule'
+        )
+        with open(os.path.join(out_dir, 'qstart'), 'w') as f:
+            f.writelines(config_qchem_start_tmp)
+
         shutil.copy(config_qchem_end, os.path.join(out_dir, 'qend'))
         shutil.copy(config_gsm, os.path.join(out_dir, 'inpfileq'))
         shutil.copy(config_gscreate, os.path.join(out_dir, 'gscreate'))
@@ -124,6 +137,7 @@ def parse_args():
     parser.add_argument('--minform', type=int, default=0, metavar='F', help='Minimum number of connections to form')
     parser.add_argument('--minchange', type=int, default=1, metavar='F', help='Minimum number of connections to change')
     parser.add_argument('--check_limits', action='store_true', help='Check valencies of expected products')
+    parser.add_argument('--mem', type=int, metavar='MEM', help='Q-Chem memory')
     parser.add_argument(
         '--config_qchem', metavar='FILE',
         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'qchem.gsm.start'),

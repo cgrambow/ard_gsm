@@ -5,7 +5,7 @@ DFT_D                     D3_BJ
 BASIS                     def2-mSVP
 UNRESTRICTED              TRUE
 SCF_ALGORITHM             RCA_DIIS
-MAX_SCF_CYCLES            50
+MAX_SCF_CYCLES            100
 SCF_CONVERGENCE           6
 SYM_IGNORE                TRUE
 SYMMETRY                  FALSE
@@ -13,4 +13,3 @@ WAVEFUNCTION_ANALYSIS     FALSE
 $end
 
 $molecule
-0 1
