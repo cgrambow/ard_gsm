@@ -9,6 +9,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, GetPeriodicTable
 
 _rdkit_periodic_table = GetPeriodicTable()
+RDKIT_SMILES_PARSER_PARAMS = Chem.SmilesParserParams()
 
 
 def smiles_to_rdkit(smi, gen_3d=True, nconf=100):
@@ -42,6 +43,23 @@ def smiles_to_rdkit(smi, gen_3d=True, nconf=100):
         mol = new_mol
 
     return mol
+
+
+def str_to_mol(s, explicit_hydrogens=True):
+    """
+    Convert SMILES or InChI to RDKit molecule in a way that can preserve
+    explicit hydrogens and atom mapping.
+    """
+    if s.startswith('InChI'):
+        mol = Chem.MolFromInchi(s, removeHs=not explicit_hydrogens)
+    else:
+        RDKIT_SMILES_PARSER_PARAMS.removeHs = not explicit_hydrogens
+        mol = Chem.MolFromSmiles(s, RDKIT_SMILES_PARSER_PARAMS)
+
+    if explicit_hydrogens:
+        return Chem.AddHs(mol)
+    else:
+        return Chem.RemoveHs(mol)
 
 
 class SanitizationError(Exception):
@@ -274,14 +292,22 @@ class MolGraph(object):
     Note: Atom indices start at 1.
     """
 
-    def __init__(self, atoms=None, symbols=None, coords=None, energy=None):
-        self.atoms = atoms or []
-        self.energy = energy
+    def __init__(self, atoms=None, symbols=None, coords=None, energy=None, smi=None):
+        if smi is not None and (atoms is not None or symbols is not None):
+            raise Exception('Cannot specify both SMILES and atoms')
 
-        if not self.atoms and symbols is not None:
-            for idx, symbol in enumerate(symbols):
-                atom = Atom(symbol=symbol, idx=idx+1)
-                self.add_atom(atom)
+        self.energy = energy
+        self.smiles = smi
+
+        if smi is not None:
+            self.from_smiles(smi)
+        else:
+            self.atoms = atoms or []
+
+            if not self.atoms and symbols is not None:
+                for idx, symbol in enumerate(symbols):
+                    atom = Atom(symbol=symbol, idx=idx+1)
+                    self.add_atom(atom)
 
         if coords is not None:
             self.set_coords(coords)
@@ -319,6 +345,23 @@ class MolGraph(object):
             formula += f'{key}{count:d}' if count > 1 else key
 
         return formula
+
+    def from_smiles(self, smi):
+        self.smiles = smi
+        rd_mol = str_to_mol(self.smiles)
+
+        self.atoms = []
+        rd_mapping = {}  # Maps RDKit atom indices to atoms in self
+        for i, rd_atom in enumerate(rd_mol.GetAtoms()):
+            atom = Atom(symbol=rd_atom.GetSymbol(), idx=i+1)
+            self.add_atom(atom)
+            rd_mapping[rd_atom.GetIdx()] = atom
+
+        for bond in rd_mol.GetBonds():
+            atom1 = rd_mapping[bond.GetBeginAtomIdx()]
+            atom2 = rd_mapping[bond.GetEndAtomIdx()]
+            connection = Connection(atom1, atom2)
+            self.add_connection(connection)
 
     def to_rmg_mol(self):
         import rmgpy.molecule.molecule as rmg_molecule
@@ -433,7 +476,8 @@ class MolGraph(object):
             )
 
         if not atommap:
-            return Chem.MolToSmiles(mol_sanitized)
+            self.smiles = Chem.MolToSmiles(mol_sanitized)
+            return self.smiles
 
         # Because we went through InChI, we lost atom mapping
         # information. Restore it by matching the original molecule.
@@ -451,7 +495,8 @@ class MolGraph(object):
 
         # If everything succeeded up to here, we hopefully have a
         # sensible Smiles string with atom mappings for all atoms.
-        return Chem.MolToSmiles(mol_sanitized)
+        self.smiles = Chem.MolToSmiles(mol_sanitized)
+        return self.smiles
 
     def add_atom(self, atom):
         self.atoms.append(atom)
