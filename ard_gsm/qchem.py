@@ -153,6 +153,13 @@ class QChem(object):
         else:
             raise QChemError(f'ZPE not found in {self.logfile}')
 
+    def get_charge(self):
+        for i, line in enumerate(self.log):
+            if '$molecule' in line:
+                return int(self.log[i+1].strip().split()[0])
+        else:
+            raise QChemError(f'Charge not found in {self.logfile}')
+
     def get_multiplicity(self):
         for i, line in enumerate(self.log):
             if '$molecule' in line:
