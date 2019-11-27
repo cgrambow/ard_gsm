@@ -91,7 +91,7 @@ class DrivingCoords(object):
 
 
 def generate_driving_coords(mol, maxbreak=3, maxform=3, maxchange=5, single_change=True, equiv_Hs=False,
-                            minbreak=0, minform=0, minchange=1):
+                            minbreak=0, minform=0, minchange=1, check_limits=False):
     """
     Generate the set of possible driving coordinates given a molecule. Only
     consider breaking a maximum of `maxbreak`, forming a maximum of `maxform`,
@@ -101,6 +101,10 @@ def generate_driving_coords(mol, maxbreak=3, maxform=3, maxchange=5, single_chan
     in addition to the other ones. If `equiv_Hs` is true, generate essentially
     equivalent driving coordinates for different but equivalent hydrogens,
     i.e., those attached to the same non-cyclic tetrahedral carbon.
+    Setting `check_limits` to True will also check that the valencies of the
+    expected product are chemically reasonable. However, the single-ended
+    growing string method may change additional bonds during its path
+    optimization, which means that this check is not always desired.
 
     Can also specify minbreak, minform, and minchange.
     """
@@ -139,7 +143,7 @@ def generate_driving_coords(mol, maxbreak=3, maxform=3, maxchange=5, single_chan
 
             for connections_to_break, connections_to_form in potential_connection_changes:
                 try:
-                    change_connections(mol, connections_to_break, connections_to_form)
+                    change_connections(mol, connections_to_break, connections_to_form, test_validity=check_limits)
                 except ConnectionError:
                     continue
                 else:

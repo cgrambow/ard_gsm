@@ -26,11 +26,12 @@ def main():
     num_regex = re.compile(r'\d+')
 
     with open(os.path.join(pdir, 'params.log'), 'w') as f:
-        f.write('Connection limits:\n')
-        for symbol in connection_limits:
-            ll = connection_limits[symbol][0]
-            ul = connection_limits[symbol][1]
-            f.write(f'  {symbol}: {ll}, {ul}\n')
+        if args.check_limits:
+            f.write('Connection limits:\n')
+            for symbol in connection_limits:
+                ll = connection_limits[symbol][0]
+                ul = connection_limits[symbol][1]
+                f.write(f'  {symbol}: {ll}, {ul}\n')
         f.write(f'maxbreak = {args.maxbreak}\n')
         f.write(f'maxform = {args.maxform}\n')
         f.write(f'maxchange = {args.maxchange}\n')
@@ -73,7 +74,8 @@ def main():
             equiv_Hs=args.equiv_Hs,
             minbreak=args.minbreak,
             minform=args.minform,
-            minchange=args.minchange
+            minchange=args.minchange,
+            check_limits=args.check_limits
         )
 
         try:
@@ -121,6 +123,7 @@ def parse_args():
     parser.add_argument('--minbreak', type=int, default=0, metavar='B', help='Minimum number of connections to break')
     parser.add_argument('--minform', type=int, default=0, metavar='F', help='Minimum number of connections to form')
     parser.add_argument('--minchange', type=int, default=1, metavar='F', help='Minimum number of connections to change')
+    parser.add_argument('--check_limits', action='store_true', help='Check valencies of expected products')
     parser.add_argument(
         '--config_qchem', metavar='FILE',
         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'qchem.gsm.start'),
