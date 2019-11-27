@@ -42,7 +42,7 @@ def main():
         multiplicity = 1 if mol_type == 'molecule' else 2
 
         q = QChem(mol, config_file=args.config)
-        q.make_input(os.path.join(args.out_dir, f'molopt{i}.in'), multiplicity=multiplicity, comment=smi)
+        q.make_input(os.path.join(args.out_dir, f'molopt{i}.in'), multiplicity=multiplicity, mem=args.mem, comment=smi)
 
 
 def parse_args():
@@ -56,6 +56,7 @@ def parse_args():
     parser.add_argument('--num', type=int, default=-1, metavar='N', help='Number of molecules to choose from mol_data')
     parser.add_argument('--not_random', action='store_false', dest='random',
                         help='Select molecules in order instead of randomly')
+    parser.add_argument('--mem', type=int, metavar='MEM', help='Q-Chem memory')
     parser.add_argument(
         '--config', metavar='FILE',
         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'qchem.opt_freq'),

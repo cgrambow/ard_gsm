@@ -43,16 +43,17 @@ class QChem(object):
                     if 'fatal error' in line:
                         raise QChemError(f'Q-Chem job {logfile} had an error!')
 
-    def make_input(self, path, charge=0, multiplicity=1, comment=None):
+    def make_input(self, path, charge=0, multiplicity=1, mem=None, comment=None):
         if isinstance(self.mol, MolGraph):
             symbols = self.mol.get_symbols()
             coords = self.mol.get_coords()
         else:
             symbols = [atom.GetSymbol() for atom in self.mol.GetAtoms()]
             coords = self.mol.GetConformers()[0].GetPositions()
-        self.make_input_from_coords(path, symbols, coords, charge=charge, multiplicity=multiplicity, comment=comment)
+        self.make_input_from_coords(path, symbols, coords, charge=charge, multiplicity=multiplicity,
+                                    mem=mem, comment=comment)
 
-    def make_input_from_coords(self, path, symbols, coords, charge=0, multiplicity=1, comment=None):
+    def make_input_from_coords(self, path, symbols, coords, charge=0, multiplicity=1, mem=None, comment=None):
         config = self.config[:]
         if comment is not None:
             config.insert(0, comment + '\n')
@@ -64,6 +65,10 @@ class QChem(object):
                 cblock.insert(0, f'{charge} {multiplicity}')
                 config[(i+1):(i+1)] = cblock
                 break  # If there are more than 1 molecule block, only fill the first one
+
+        if mem is not None:
+            # Memory specified in MB
+            config = insert_into_qcinput(config, f'MEM_TOTAL                 {mem:d}', '$rem')
 
         with open(path, 'w') as f:
             for line in config:
@@ -154,3 +159,15 @@ class QChem(object):
                 return int(self.log[i+1].strip().split()[-1])
         else:
             raise QChemError(f'Multiplicity not found in {self.logfile}')
+
+
+def insert_into_qcinput(inp_file, s, pattern, first_only=False):
+    inp_file = inp_file[:]
+    acc = 1
+    for i, line in enumerate(inp_file[:]):
+        if line.startswith(pattern):
+            inp_file.insert(i + acc, s)
+            if first_only:
+                break
+            acc += 1
+    return inp_file

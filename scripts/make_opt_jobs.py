@@ -51,7 +51,7 @@ def main():
     print('Making input files...')
     for i, mol in enumerate(mols):
         q = QChem(mol, config_file=args.config)
-        q.make_input(os.path.join(args.out_dir, f'molopt{i}.in'))
+        q.make_input(os.path.join(args.out_dir, f'molopt{i}.in'), mem=args.mem)
 
     with open(os.path.join(args.out_dir, 'names.txt'), 'w') as f:
         for i, name in enumerate(names):
@@ -70,6 +70,7 @@ def parse_args():
     parser.add_argument('--nconf', type=int, default=100, metavar='C',
                         help='Number of conformers to generate for lowest-energy conformer search')
     parser.add_argument('--ignore', metavar='FILE', help='File containing list of QM9 file names to ignore')
+    parser.add_argument('--mem', type=int, metavar='MEM', help='Q-Chem memory')
     parser.add_argument(
         '--config', metavar='FILE',
         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'qchem.opt_freq'),
