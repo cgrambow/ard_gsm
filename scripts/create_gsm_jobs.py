@@ -119,7 +119,7 @@ def parse_args():
                         help='Do not consider single connection changes (e.g., nbreak=1, nform=0)')
     parser.add_argument('--consider_equivalent_hydrogens', action='store_true', dest='equiv_Hs',
                         help='Create equivalent driving coordinates for the same reaction with different but '
-                             'equivalent hydrogens, i.e., hydrogens attached to non-cyclic tetrahedral carbons')
+                             'equivalent hydrogens, i.e., hydrogens in methyl groups')
     parser.add_argument('--minbreak', type=int, default=0, metavar='B', help='Minimum number of connections to break')
     parser.add_argument('--minform', type=int, default=0, metavar='F', help='Minimum number of connections to form')
     parser.add_argument('--minchange', type=int, default=1, metavar='F', help='Minimum number of connections to change')
