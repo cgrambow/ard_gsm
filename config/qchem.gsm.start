@@ -4,12 +4,13 @@ METHOD                    B97-D3
 DFT_D                     D3_BJ
 BASIS                     def2-mSVP
 UNRESTRICTED              TRUE
-SCF_ALGORITHM             RCA_DIIS
+SCF_ALGORITHM             DIIS
 MAX_SCF_CYCLES            100
 SCF_CONVERGENCE           6
 SYM_IGNORE                TRUE
 SYMMETRY                  FALSE
 WAVEFUNCTION_ANALYSIS     FALSE
+XC_GRID                   1
 $end
 
 $molecule
