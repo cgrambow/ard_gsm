@@ -107,7 +107,10 @@ def main():
 
         shutil.copy(config_qchem_end, os.path.join(out_dir, 'qend'))
         shutil.copy(config_gsm, os.path.join(out_dir, 'inpfileq'))
-        shutil.copy(config_gscreate, os.path.join(out_dir, 'gscreate'))
+
+        gscreate_path = os.path.join(out_dir, 'gscreate')
+        shutil.copy(config_gscreate, gscreate_path)
+        os.chmod(gscreate_path, 0o755)  # Make executable
 
         for idx, driving_coords in enumerate(driving_coords_set):
             isomers_file = os.path.join(scr_dir, f'ISOMERS{idx:04}')
