@@ -312,6 +312,8 @@ class MolGraph(object):
         if coords is not None:
             self.set_coords(coords)
 
+        self.rmg_mol = None
+
     def __iter__(self):
         for atom in self.atoms:
             yield atom
@@ -364,6 +366,9 @@ class MolGraph(object):
             self.add_connection(connection)
 
     def to_rmg_mol(self):
+        if self.rmg_mol is not None:
+            return self.rmg_mol
+
         import rmgpy.molecule.molecule as rmg_molecule
 
         rmg_atoms = [rmg_molecule.Atom(element=atom.symbol, coords=atom.coords) for atom in self]
@@ -374,6 +379,7 @@ class MolGraph(object):
         for bond in rmg_bonds:
             rmg_mol.add_bond(bond)
 
+        self.rmg_mol = rmg_mol
         return rmg_mol
 
     def to_rdkit_mol(self):
@@ -627,6 +633,23 @@ class MolGraph(object):
         self_rmg = self.to_rmg_mol()
         other_rmg = other.to_rmg_mol()
         return self_rmg.is_isomorphic(other_rmg)
+
+    def has_same_connectivity(self, other):
+        """
+        Test if self has the same connectivity as other.
+        Requires that the atoms are in the same order.
+        """
+        if len(self.atoms) != len(other.atoms):
+            raise Exception('Require the same number of atoms to test connectivity')
+
+        for atom_s, atom_o in zip(self, other):
+            if atom_s.symbol != atom_o.symbol or atom_s.idx != atom_o.idx:
+                raise Exception('Atoms have to be in the same order to test connectivity')
+
+            if set(atom_s.connections.values()) != set(atom_o.connections.values()):
+                return False
+
+        return True
 
     def set_coords(self, coords):
         """
