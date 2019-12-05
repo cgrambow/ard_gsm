@@ -167,6 +167,15 @@ class QChem(object):
         else:
             raise QChemError(f'Multiplicity not found in {self.logfile}')
 
+    def get_comment(self):
+        for i, line in enumerate(self.log):
+            if 'User input' in line:
+                comment = self.log[i+2].strip()
+                if comment and comment not in {'$molecule', '$rem'}:
+                    return comment
+        else:
+            raise QChemError(f'No comment found in {self.logfile}')
+
 
 def insert_into_qcinput(inp_file, s, pattern, first_only=False):
     inp_file = inp_file[:]
