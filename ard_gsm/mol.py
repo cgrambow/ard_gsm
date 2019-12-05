@@ -504,6 +504,36 @@ class MolGraph(object):
         self.smiles = Chem.MolToSmiles(mol_sanitized)
         return self.smiles
 
+    def assign_atom_map_numbers_to_smiles(self, smiles):
+        """
+        Given a SMILES string without atom map numbers, match it to the
+        graph and assign the atom map numbers based on the order of
+        atoms in the molecular graph.
+        """
+
+        # Use RDKit to do the mapping
+        rd_mol = self.to_rdkit_mol()  # Only has single bonds
+        rd_target = str_to_mol(smiles)
+
+        # Make copy of target that only has single bonds
+        rd_target_copy = Chem.Mol(rd_target)
+        for bond in rd_target_copy.GetBonds():
+            bond.SetBondType(Chem.BondType.SINGLE)
+
+        # Match atoms
+        match = rd_target_copy.GetSubstructMatch(rd_mol)
+        if rd_mol.GetNumAtoms() != len(match):
+            raise SanitizationError(f'Target SMILES {smiles} does not match molecular graph')
+
+        # Assign atom map numbers
+        for atom in rd_mol.GetAtoms():
+            idx = match[atom.GetIdx()]
+            map_num = atom.GetAtomMapNum()
+            rd_target.GetAtomWithIdx(idx).SetAtomMapNum(map_num)
+
+        self.smiles = Chem.MolToSmiles(rd_target)
+        return self.smiles
+
     def add_atom(self, atom):
         self.atoms.append(atom)
         atom.connections = {}
