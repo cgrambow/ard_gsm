@@ -4,6 +4,7 @@
 import pickle
 import gzip
 import os
+import re
 
 import numpy as np
 
@@ -26,11 +27,14 @@ def pickle_load(path, compressed=False):
             return pickle.load(f)
 
 
-def iter_sub_dirs(root):
+def iter_sub_dirs(root, pattern=None):
+    prog = re.compile(r'.*') if pattern is None else re.compile(pattern)
+
     for item in os.listdir(root):
-        item = os.path.join(root, item)
-        if os.path.isdir(item):
-            yield item
+        if prog.fullmatch(item):
+            item = os.path.join(root, item)
+            if os.path.isdir(item):
+                yield item
 
 
 def read_xyz_file(path, with_energy=False):

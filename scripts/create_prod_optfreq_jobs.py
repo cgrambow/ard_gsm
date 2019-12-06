@@ -14,7 +14,7 @@ def main():
     args = parse_args()
     num_regex = re.compile(r'\d+')
 
-    for gsm_sub_dir in iter_sub_dirs(args.gsm_dir):
+    for gsm_sub_dir in iter_sub_dirs(args.gsm_dir, pattern=r'gsm\d+'):
         out_dir = os.path.join(args.out_dir, os.path.basename(gsm_sub_dir))
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
