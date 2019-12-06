@@ -29,15 +29,21 @@ def main():
         isomers_file = os.path.join(scr_dir, f'ISOMERS{num:04}')
         ts_file = os.path.join(scr_dir, f'tsq{num:04}.xyz')
 
-        (niter,
-         ngrad,
-         overlap,
-         ts_type,
-         scf_error,
-         too_many_nodes,
-         high_energy,
-         geometry_error,
-         dissociative) = get_gsm_stats(gsm_log)
+        try:
+            (niter,
+             ngrad,
+             overlap,
+             ts_type,
+             scf_error,
+             too_many_nodes,
+             high_energy,
+             geometry_error,
+             dissociative,
+             bad_spacings,
+             growth_limit) = get_gsm_stats(gsm_log)
+        except:
+            print(f'Error in {gsm_log}:')
+            raise
         time_limit, bus_error = check_for_slurm_error(slurm_log)
 
         error = None
@@ -55,6 +61,10 @@ def main():
             error = 'dissociative'
         elif scf_error:
             error = 'scf'
+        elif bad_spacings:
+            error = 'spacing'
+        elif growth_limit:
+            error = 'growth_limit'
         # ##### Temporary #####
         elif ts_type != '-FL-' and not os.path.exists(ts_file):
             raise Exception(f'Other error in {gsm_log}!')
@@ -119,7 +129,7 @@ def main():
     results_with_barrier = [stats for stats in results if hasattr(stats, 'barrier')]
     results_with_barrier.sort(key=lambda s: s.barrier)
     for i in range(min(10, len(results_with_barrier))):
-        print('{results_with_barrier[i].num}: {results_with_barrier[i].barrier:.2f}')
+        print(f'{results_with_barrier[i].num}: {results_with_barrier[i].barrier:.2f}')
 
 
 class Stats(object):
@@ -146,6 +156,8 @@ def get_gsm_stats(gsm_log):
     high_energy = False
     geometry_error = False
     dissociative = False
+    bad_spacings = False
+    growth_limit = False
 
     with open(gsm_log) as f:
         for line in f:
@@ -158,13 +170,16 @@ def get_gsm_stats(gsm_log):
                     niter += 1
                 elif 'opt_iters over:' in line:
                     line_split = line.split()
-                    try:
-                        ol_idx = line_split.index('ol(0):')
-                    except ValueError:
+                    for ol_num in range(100):
                         try:
-                            ol_idx = line_split.index('ol(1):')
-                        except ValueError:
-                            ol_idx = line_split.index('ol(2):')
+                            ol_idx = line_split.index(f'ol({ol_num}):')
+                        except ValueError as e:
+                            ol_error = e
+                            continue
+                        else:
+                            break
+                    else:
+                        raise ol_error
                     overlap = float(line_split[ol_idx+1])
                     ts_type = line_split[-1]
                     if ts_type == 'growth-':
@@ -182,8 +197,13 @@ def get_gsm_stats(gsm_log):
                 geometry_error = True
             elif 'terminating due to dissociation' in line:
                 dissociative = True
+            elif 'ERROR: bad spacings' in line:
+                bad_spacings = True
+            elif 'at limit of growth' in line:
+                growth_limit = True
 
-    return niter, ngrad, overlap, ts_type, scf_error, too_many_nodes, high_energy, geometry_error, dissociative
+    return (niter, ngrad, overlap, ts_type,
+            scf_error, too_many_nodes, high_energy, geometry_error, dissociative, bad_spacings, growth_limit)
 
 
 def check_for_slurm_error(slurm_log):
