@@ -21,6 +21,10 @@ def main():
         elif not args.overwrite:
             continue
 
+        qstart_file = os.path.join(gsm_sub_dir, 'qstart')
+        qtmp = QChem(logfile=qstart_file)
+        charge, multiplicity = qtmp.get_charge(), qtmp.get_multiplicity()
+
         print(f'Extracting from {gsm_sub_dir}...')
         for gsm_log in glob.iglob(os.path.join(gsm_sub_dir, 'gsm*.out')):
             num = int(num_regex.search(os.path.basename(gsm_log)).group(0))
@@ -36,7 +40,7 @@ def main():
                     continue
                 path = os.path.join(out_dir, f'prod_optfreq{num:04}.in')
                 q = QChem(config_file=args.config)
-                q.make_input_from_coords(path, *xyzs[-1][:-1])
+                q.make_input_from_coords(path, *xyzs[-1][:-1], charge=charge, multiplicity=multiplicity, mem=args.mem)
 
 
 def is_successful(gsm_log):
@@ -54,6 +58,7 @@ def parse_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('gsm_dir', metavar='GSMDIR', help='Path to directory containing GSM folders')
     parser.add_argument('out_dir', metavar='ODIR', help='Path to output directory')
+    parser.add_argument('--mem', type=int, metavar='MEM', help='Q-Chem memory')
     parser.add_argument('--overwrite', action='store_true', help='Overwrite input files in existing directories')
     parser.add_argument(
         '--config', metavar='FILE',
