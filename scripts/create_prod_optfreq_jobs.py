@@ -13,8 +13,13 @@ from ard_gsm.util import iter_sub_dirs, read_xyz_file
 def main():
     args = parse_args()
     num_regex = re.compile(r'\d+')
+    maxnum = float('inf') if args.maxnum is None else args.maxnum
 
     for gsm_sub_dir in iter_sub_dirs(args.gsm_dir, pattern=r'gsm\d+'):
+        gsm_num = int(num_regex.search(os.path.basename(gsm_sub_dir)).group(0))
+        if gsm_num > maxnum:
+            continue
+
         out_dir = os.path.join(args.out_dir, os.path.basename(gsm_sub_dir))
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
@@ -60,6 +65,7 @@ def parse_args():
     parser.add_argument('out_dir', metavar='ODIR', help='Path to output directory')
     parser.add_argument('--mem', type=int, metavar='MEM', help='Q-Chem memory')
     parser.add_argument('--overwrite', action='store_true', help='Overwrite input files in existing directories')
+    parser.add_argument('--maxnum', type=int, metavar='NUM', help='Only make jobs from GSM folders up to this number')
     parser.add_argument(
         '--config', metavar='FILE',
         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'qchem.opt_freq'),
