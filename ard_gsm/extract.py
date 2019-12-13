@@ -122,7 +122,11 @@ def qchem2molgraph(logfile, return_qobj=False, return_none_on_err=False, **kwarg
 
 
 def valid_job(q, edist_max=None, gdist_max=None, ts=False, freq_only=False, print_msg=True):
-    freqs = q.get_frequencies()
+    try:
+        freqs = q.get_frequencies()
+    except QChemError as e:
+        print(e)
+        return False
     nnegfreq = sum(1 for freq in freqs if freq < 0.0)
 
     if (ts and nnegfreq != 1) or (not ts and nnegfreq != 0):

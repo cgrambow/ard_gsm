@@ -48,23 +48,30 @@ def main():
         )
 
     rxn_num = 0
-    for ts_sub_dir in iter_sub_dirs(args.ts_dir):
+    for ts_sub_dir in iter_sub_dirs(args.ts_dir, pattern=r'gsm\d+'):
         sub_dir_name = os.path.basename(ts_sub_dir)
-        if not sub_dir_name.startswith('gsm'):
-            continue
         print(f'Extracting from {sub_dir_name}...')
         reactant_num = int(num_regex.search(sub_dir_name).group(0))
         reactant_file = os.path.abspath(os.path.join(args.reac_dir, f'molopt{reactant_num}.log'))
 
-        reactant = qchem2molgraph(reactant_file, freq_only=True, print_msg=False)
+        reactant, qr = qchem2molgraph(reactant_file, freq_only=True, print_msg=False, return_qobj=True)
         if reactant is None:
             raise Exception(f'Negative frequency for reactant in {reactant_file}!')
 
-        try:
-            reactant_smiles = reactant.perceive_smiles(atommap=args.atommap)
-        except SanitizationError:
-            print(f'Error during Smiles conversion in {reactant_file}')
-            raise
+        if args.reactant_smiles_from_comment:
+            reactant_smiles = qr.get_comment()
+            if args.atommap:
+                try:
+                    reactant_smiles = reactant.assign_atom_map_numbers_to_smiles(reactant_smiles)
+                except SanitizationError:
+                    print(f'Error during Smiles conversion in {reactant_file}')
+                    raise
+        else:
+            try:
+                reactant_smiles = reactant.perceive_smiles(atommap=args.atommap)
+            except SanitizationError:
+                print(f'Error during Smiles conversion in {reactant_file}')
+                raise
 
         reactions = {}
         for ts_file in glob.iglob(os.path.join(ts_sub_dir, 'ts_optfreq*.out')):
@@ -126,6 +133,8 @@ def parse_args():
     parser.add_argument('out_file', help='Path to output file')
     parser.add_argument('--all_ts', action='store_true',
                         help='Do not filter reactions or remove duplicates and store only TS file info')
+    parser.add_argument('--reactant_smiles_from_comment', action='store_true',
+                        help='Use the SMILES in the reactant geometry optimization comment instead of inferring it')
     parser.add_argument('--xyz_dir', help='If specified, write the geometries for each reaction to this directory')
     parser.add_argument('--include_reverse', action='store_true', help='Also extract reverse reactions')
     parser.add_argument('--write_file_info', action='store_true', help='Write file paths to output file')
