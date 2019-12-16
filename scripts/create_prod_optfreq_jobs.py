@@ -35,7 +35,12 @@ def main():
             num = int(num_regex.search(os.path.basename(gsm_log)).group(0))
             string_file = os.path.join(gsm_sub_dir, f'stringfile.xyz{num:04}')
 
-            if is_successful(gsm_log):
+            if not (os.path.isfile(string_file) and os.path.getsize(string_file) > 0):
+                continue
+            if args.ignore_errors and has_error(gsm_log):
+                continue
+
+            if args.ignore_errors or is_successful(gsm_log):
                 # Optimize van-der-Waals wells instead of separated products
                 # Also check if product optimization during GSM failed
                 xyzs = read_xyz_file(string_file, with_energy=True)
@@ -59,6 +64,19 @@ def is_successful(gsm_log):
     return False
 
 
+def has_error(gsm_log):
+    """
+    Check if last node is high in energy or if the path is dissociative.
+    """
+    with open(gsm_log) as f:
+        for line in reversed(f.readlines()):
+            if 'high energy' in line and '-exit early-' in line:
+                return True
+            if 'terminating due to dissociation' in line:
+                return True
+    return False
+
+
 def parse_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('gsm_dir', metavar='GSMDIR', help='Path to directory containing GSM folders')
@@ -66,6 +84,8 @@ def parse_args():
     parser.add_argument('--mem', type=int, metavar='MEM', help='Q-Chem memory')
     parser.add_argument('--overwrite', action='store_true', help='Overwrite input files in existing directories')
     parser.add_argument('--maxnum', type=int, metavar='NUM', help='Only make jobs from GSM folders up to this number')
+    parser.add_argument('--ignore_errors', action='store_true',
+                        help='Extract from all GSM calculations ignoring (most) errors')
     parser.add_argument(
         '--config', metavar='FILE',
         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'qchem.opt_freq'),
