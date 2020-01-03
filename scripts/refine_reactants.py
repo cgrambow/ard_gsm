@@ -33,18 +33,20 @@ def main():
                 raise Exception(f'Negative frequency in {logfile}! Not optimized')
 
         symbols, coords = log.get_geometry()
+        charge = log.get_charge()
         mult = log.get_multiplicity()
         fname = os.path.splitext(os.path.basename(logfile))[0] + '.in'
         path = os.path.join(args.out_dir, fname)
 
         q = QChem(config_file=args.config)
-        q.make_input_from_coords(path, symbols, coords, multiplicity=mult)
+        q.make_input_from_coords(path, symbols, coords, charge=charge, multiplicity=mult, mem=args.mem)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('qlog_dir', help='Directory containing geometry optimization outputs')
     parser.add_argument('out_dir', help='Output directory')
+    parser.add_argument('--mem', type=int, metavar='MEM', help='Q-Chem memory')
     parser.add_argument(
         '--config',
         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'qchem.opt_freq_high'),

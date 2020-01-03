@@ -14,18 +14,21 @@ from ard_gsm.util import iter_sub_dirs
 def main():
     args = parse_args()
     num_regex = re.compile(r'\d+')
+    maxnum = float('inf') if args.maxnum is None else args.maxnum
 
-    for ts_sub_dir in iter_sub_dirs(args.ts_dir):
+    for ts_sub_dir in iter_sub_dirs(args.ts_dir, pattern=r'gsm\d+'):
         sub_dir_name = os.path.basename(ts_sub_dir)
-        if not sub_dir_name.startswith('gsm'):
+        gsm_num = int(num_regex.search(sub_dir_name).group(0))
+        if gsm_num > maxnum:
             continue
         print(f'Extracting from {sub_dir_name}...')
 
         reactant_num = int(num_regex.search(sub_dir_name).group(0))
         reactant_file = os.path.join(args.reac_dir, f'molopt{reactant_num}.log')
-        reactant = qchem2molgraph(reactant_file, freq_only=True, print_msg=False)
+        reactant, qr = qchem2molgraph(reactant_file, return_qobj=True, freq_only=True, print_msg=False)
         if reactant is None:
             raise Exception(f'Negative frequency for reactant in {reactant_file}!')
+        charge, multiplicity = qr.get_charge(), qr.get_multiplicity()
 
         reactions = {}
         for ts_file in glob.iglob(os.path.join(ts_sub_dir, 'ts_optfreq*.out')):
@@ -65,8 +68,8 @@ def main():
             prod_file = os.path.join(prod_sub_out_dir, f'prod_optfreq{num:04}.in')
             qts = QChem(mol=rxn.ts, config_file=args.config_ts)
             qp = QChem(mol=rxn.product, config_file=args.config_prod)
-            qts.make_input(ts_file)
-            qp.make_input(prod_file)
+            qts.make_input(ts_file, charge=charge, multiplicity=multiplicity, mem=args.mem)
+            qp.make_input(prod_file, charge=charge, multiplicity=multiplicity, mem=args.mem)
 
 
 def parse_args():
@@ -76,6 +79,8 @@ def parse_args():
     parser.add_argument('ts_dir', help='Directory containing optimized TS structures')
     parser.add_argument('prod_out_dir', help='Output directory for product jobs')
     parser.add_argument('ts_out_dir', help='Output directory for TS jobs')
+    parser.add_argument('--maxnum', type=int, metavar='NUM', help='Only make jobs from GSM folders up to this number')
+    parser.add_argument('--mem', type=int, metavar='MEM', help='Q-Chem memory')
     parser.add_argument('--ndup', type=int, default=1,
                         help='Number of duplicate reactions of the same type to extract (sorted by lowest barrier)')
     parser.add_argument('--edist', type=float, default=5.0,
