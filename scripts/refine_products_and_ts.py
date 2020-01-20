@@ -21,6 +21,11 @@ def main():
         gsm_num = int(num_regex.search(sub_dir_name).group(0))
         if gsm_num > maxnum:
             continue
+
+        ts_sub_out_dir = os.path.join(args.ts_out_dir, sub_dir_name)
+        if os.path.exists(ts_sub_out_dir) and not args.overwrite:
+            continue
+
         print(f'Extracting from {sub_dir_name}...')
 
         reactant_num = int(num_regex.search(sub_dir_name).group(0))
@@ -56,12 +61,9 @@ def main():
             set_smiles=False
         )
 
-        ts_sub_out_dir = os.path.join(args.ts_out_dir, sub_dir_name)
         prod_sub_out_dir = os.path.join(args.prod_out_dir, sub_dir_name)
-        if not os.path.exists(ts_sub_out_dir):
-            os.makedirs(ts_sub_out_dir)
-        if not os.path.exists(prod_sub_out_dir):
-            os.makedirs(prod_sub_out_dir)
+        os.makedirs(ts_sub_out_dir, exist_ok=True)
+        os.makedirs(prod_sub_out_dir, exist_ok=True)
 
         for num, rxn in reactions.items():
             ts_file = os.path.join(ts_sub_out_dir, f'ts_optfreq{num:04}.in')
@@ -80,6 +82,7 @@ def parse_args():
     parser.add_argument('prod_out_dir', help='Output directory for product jobs')
     parser.add_argument('ts_out_dir', help='Output directory for TS jobs')
     parser.add_argument('--maxnum', type=int, metavar='NUM', help='Only make jobs from GSM folders up to this number')
+    parser.add_argument('--overwrite', action='store_true', help='Overwrite input files in existing directories')
     parser.add_argument('--mem', type=int, metavar='MEM', help='Q-Chem memory')
     parser.add_argument('--ndup', type=int, default=1,
                         help='Number of duplicate reactions of the same type to extract (sorted by lowest barrier)')
